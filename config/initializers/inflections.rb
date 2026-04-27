@@ -14,3 +14,10 @@
 # ActiveSupport::Inflector.inflections(:en) do |inflect|
 #   inflect.acronym "RESTful"
 # end
+
+# Zeitwerk inflections for custom acronyms
+Rails.autoloaders.each do |autoloader|
+  autoloader.inflector.inflect(
+    "whatsapp_service" => "WhatsAppService"
+  )
+end

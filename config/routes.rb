@@ -10,6 +10,10 @@ Rails.application.routes.draw do
   end
   mount Sidekiq::Web => "/sidekiq"
 
+  # WhatsApp webhook — Meta Cloud API verification and incoming messages
+  get "/webhooks/whatsapp", to: "webhooks#verify"
+  post "/webhooks/whatsapp", to: "webhooks#receive"
+
   # Health check
   get "up" => "rails/health#show", as: :rails_health_check
 end
