@@ -32,7 +32,7 @@ gem "sidekiq"
 gem "redis"
 
 # Claude AI API client
-gem "anthropic-rb"
+gem "anthropic-rb", require: "anthropic"
 
 # HTTP client for Meta Cloud API
 gem "httparty"
