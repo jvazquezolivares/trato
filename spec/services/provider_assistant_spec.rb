@@ -75,7 +75,7 @@ RSpec.describe ProviderAssistant do
 
       expect(ClaudeService).to have_received(:call).with(
         model: :haiku,
-        system_prompt: a_string_matching(/asistente de negocios de Miguel/),
+        system_prompt: a_string_matching(/Elisa.*asistente de negocios de Miguel/),
         user_message: "Terminé un trabajo",
         context: hash_including("history")
       )

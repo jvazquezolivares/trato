@@ -15,7 +15,7 @@ class ConversationHandler
 
   def self.call(from:, body:, media_url: nil)
     return route_to_provider(from, body, media_url) if provider_by_phone(from)
-    return route_to_client(body) if provider_by_short_uuid(body)
+    return route_to_client(from, body) if provider_by_short_uuid(body)
 
     handle_unknown(from: from, body: body)
   end
@@ -49,8 +49,8 @@ class ConversationHandler
     ProviderAssistant.call(provider: @_provider_by_phone, body: body, media_url: media_url)
   end
 
-  def self.route_to_client(body)
-    ClientAssistant.call(provider: @_provider_by_uuid, from: nil, body: body)
+  def self.route_to_client(from, body)
+    ClientAssistant.call(provider: @_provider_by_uuid, from: from, body: body)
   end
 
   def self.load_onboarding_state(phone)

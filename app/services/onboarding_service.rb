@@ -418,7 +418,7 @@ class OnboardingService
 
     message = "¡Listo, #{provider.name}! Tu perfil ya está activo 🎉\n\n" \
               "Tu página: #{profile_url}\n" \
-              "Link de tu asistente: #{assistant_link}\n\n" \
+              "Link de tu asistente Elisa: #{assistant_link}\n\n" \
               "Comparte ese link con tus clientes para que me escriban a mí cuando no puedas contestar."
 
     send_message(message)
@@ -426,7 +426,7 @@ class OnboardingService
 
   def send_capabilities_explanation(provider)
     messages = [
-      "Te cuento lo que puedo hacer por ti 👇",
+      "Soy Elisa y te cuento lo que puedo hacer por ti 👇",
       "📅 *Agenda:* Dime cuándo empiezas a trabajar y yo organizo tus citas del día. Tus clientes pueden agendar conmigo directo.",
       "💰 *Cobros y gastos:* Cuando termines un trabajo, cuéntame y yo registro el cobro. También puedo llevar tus gastos de material.",
       "📋 *Pendientes:* Si me dices \"recuérdame comprar cable\" o \"tengo que llamar al señor Pérez\", yo te lo recuerdo al día siguiente.",
@@ -441,7 +441,7 @@ class OnboardingService
   def send_auto_reply_suggestion(provider)
     auto_reply = "Por cierto, te recomiendo poner este mensaje como respuesta automática en tu WhatsApp Business:\n\n" \
                  "\"Hola 👋 Ahorita estoy trabajando.\n" \
-                 "Mi asistente puede ayudarte:\n" \
+                 "Mi asistente Elisa puede ayudarte:\n" \
                  "#{provider.assistant_whatsapp_link}\""
 
     send_message(auto_reply)

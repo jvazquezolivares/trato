@@ -31,7 +31,7 @@ RSpec.describe ConversationHandler, "P2: routing by short_uuid match", type: :pr
         ConversationHandler.call(from: unknown_phone, body: provider.short_uuid, media_url: nil)
 
         expect(ClientAssistant).to have_received(:call).with(
-          provider: provider, from: nil, body: provider.short_uuid
+          provider: provider, from: unknown_phone, body: provider.short_uuid
         )
       end
     end
