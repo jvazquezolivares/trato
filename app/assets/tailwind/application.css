@@ -1,1 +1,74 @@
 @import "tailwindcss";
+
+/*
+ * Trato Design System — Stitch color tokens
+ * Maps the Stitch semantic color system to Tailwind v4 theme variables.
+ * Usage: bg-primary, text-on-surface, bg-surface-container-low, etc.
+ */
+@theme {
+  /* Primary palette */
+  --color-primary: #005c55;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #0f766e;
+  --color-on-primary-container: #a3faef;
+  --color-primary-fixed: #9cf2e8;
+  --color-primary-fixed-dim: #80d5cb;
+  --color-on-primary-fixed: #00201d;
+  --color-on-primary-fixed-variant: #00504a;
+  --color-inverse-primary: #80d5cb;
+
+  /* Secondary palette (amber/CTA) */
+  --color-secondary: #855300;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #fea619;
+  --color-on-secondary-container: #684000;
+  --color-secondary-fixed: #ffddb8;
+  --color-secondary-fixed-dim: #ffb95f;
+  --color-on-secondary-fixed: #2a1700;
+  --color-on-secondary-fixed-variant: #653e00;
+
+  /* Tertiary palette */
+  --color-tertiary: #005e28;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #007a35;
+  --color-on-tertiary-container: #a1ffaf;
+  --color-tertiary-fixed: #66ff8e;
+  --color-tertiary-fixed-dim: #3de273;
+  --color-on-tertiary-fixed: #002109;
+  --color-on-tertiary-fixed-variant: #005322;
+
+  /* Error */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* Surface / Background */
+  --color-surface: #f9f9ff;
+  --color-on-surface: #111c2d;
+  --color-surface-variant: #d8e3fb;
+  --color-on-surface-variant: #3e4947;
+  --color-surface-dim: #cfdaf2;
+  --color-surface-bright: #f9f9ff;
+  --color-surface-tint: #006a63;
+  --color-background: #f9f9ff;
+  --color-on-background: #111c2d;
+  --color-inverse-surface: #263143;
+  --color-inverse-on-surface: #ecf1ff;
+
+  /* Surface containers */
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f0f3ff;
+  --color-surface-container: #e7eeff;
+  --color-surface-container-high: #dee8ff;
+  --color-surface-container-highest: #d8e3fb;
+
+  /* Outline */
+  --color-outline: #6e7977;
+  --color-outline-variant: #bdc9c6;
+
+  /* Font families */
+  --font-headline: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Manrope', sans-serif;
+  --font-label: 'Manrope', sans-serif;
+}

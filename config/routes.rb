@@ -20,6 +20,9 @@ Rails.application.routes.draw do
   # Public provider profile page — SEO-friendly URL, no auth required
   get "/p/:category_city/:slug", to: "providers#show", as: :provider_profile
 
+  # Homepage
+  root "home#index"
+
   # Health check
   get "up" => "rails/health#show", as: :rails_health_check
 end

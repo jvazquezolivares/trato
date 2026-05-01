@@ -1,0 +1,314 @@
+<% content_for(:title) { "Trato — Encuentra técnicos de confianza cerca de ti" } %>
+<% content_for(:meta_description) { "Conectamos a los mejores profesionales del hogar con las familias que más los necesitan. Fontaneros, electricistas, carpinteros y más en tu ciudad." } %>
+
+<%# ===== TOP NAVIGATION (from Stitch — STITCH_PROMPT_v2 correction #1: no "Pedir Servicio") ===== %>
+<nav class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm">
+  <div class="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
+    <a href="/" class="text-2xl font-black text-primary tracking-tight font-headline">Trato</a>
+    <div class="flex items-center gap-4">
+      <a href="#unete" class="hidden md:block bg-primary text-on-primary px-6 py-2.5 rounded-full font-bold hover:bg-primary-container transition-all active:scale-95 shadow-sm">¿Eres técnico? Únete</a>
+      <a href="/login" class="hidden md:block text-on-surface-variant hover:text-primary transition-all duration-200 px-4 py-2 font-medium">Iniciar sesión</a>
+    </div>
+  </div>
+</nav>
+
+<main class="pt-24">
+
+  <%# ===== HERO SECTION (from Stitch — two-column layout with hero image) ===== %>
+  <section class="max-w-7xl mx-auto px-6 py-12 md:py-20 flex flex-col md:flex-row items-center gap-12 lg:gap-20">
+    <div class="flex-1 space-y-8">
+      <div class="space-y-4">
+        <h1 class="text-5xl lg:text-7xl font-extrabold font-headline leading-[1.1] text-on-surface tracking-tight">
+          Encuentra al técnico de <span class="text-primary">confianza</span> que necesitas
+        </h1>
+        <p class="text-xl text-on-surface-variant max-w-lg leading-relaxed font-body">
+          Profesionales verificados con reseñas reales en tu ciudad. Tu hogar, en buenas manos.
+        </p>
+      </div>
+
+      <%# Search pill (from Stitch) %>
+      <div class="relative max-w-xl group">
+        <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+          <span class="material-symbols-outlined text-secondary">search</span>
+        </div>
+        <input
+          type="text"
+          placeholder="¿Qué servicio buscas hoy? Ej. Fontanero"
+          class="w-full pl-14 pr-32 py-5 bg-surface-container-lowest rounded-full border-none shadow-xl focus:ring-2 focus:ring-primary/20 transition-all text-lg font-medium placeholder:text-outline font-body"
+        >
+        <button class="absolute right-2 top-2 bottom-2 bg-primary text-on-primary px-8 rounded-full font-bold hover:bg-primary-container transition-colors active:scale-95">Buscar</button>
+      </div>
+
+      <%# Trust badges (from Stitch) %>
+      <div class="flex flex-wrap items-center gap-6 pt-4">
+        <div class="flex items-center gap-2 text-on-surface-variant font-medium font-body">
+          <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+          <span>Identidad Verificada</span>
+        </div>
+        <div class="flex items-center gap-2 text-on-surface-variant font-medium font-body">
+          <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+          <span>4.8/5 Promedio</span>
+        </div>
+      </div>
+    </div>
+
+    <%# Hero image (from Stitch) %>
+    <div class="flex-1 relative hidden md:block">
+      <div class="relative rounded-[2rem] overflow-hidden shadow-2xl transform rotate-2">
+        <img
+          alt="Profesional trabajando"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDy3wSEIgwHQRRPWnQCuBvWA3DyHe1dYT58F0TBT6W5A-aUF4uRySENJ2bTvb09--CG-LvV6bm2OS6CWB4-tW8GYJDMNhOOJiAnldx6ODLWgosFqUnT3n8S6ToQOPbMNVnJK1ZRlHDDu1bdkNtsiwOu_uyTbCSwnrToheZHQmAPDvuwfJ2UFIA-DHp-IXhdH77W4LRGwbz2mUJxyRoeJalVuE3YDaGhCoGIFM2pI_9Pxu1BgJGhiAgvXbO9iplfr_koquLy9j0q7U"
+          class="w-full h-[500px] object-cover"
+          loading="eager"
+        >
+      </div>
+      <%# Asymmetric overlap detail (from Stitch) %>
+      <div class="absolute -bottom-6 -left-6 bg-surface-container-lowest p-6 rounded-2xl shadow-xl max-w-[200px] hidden lg:block transform -rotate-3">
+        <p class="text-primary font-bold text-lg leading-tight font-headline">Expertos listos para ayudarte</p>
+        <div class="mt-2 flex -space-x-2">
+          <% @homepage.featured_providers.first(3).each do |provider| %>
+            <% profile = profile_photo_for(provider) %>
+            <% if profile %>
+              <img alt="<%= provider.name %>" src="<%= profile.url %>" class="w-8 h-8 rounded-full border-2 border-white object-cover">
+            <% else %>
+              <div class="w-8 h-8 rounded-full border-2 border-white bg-primary flex items-center justify-center">
+                <span class="text-[10px] font-bold text-on-primary"><%= provider_initials(provider.name) %></span>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <%# ===== CATEGORY CHIPS (from Stitch — horizontal scrollable with icons) ===== %>
+  <section class="max-w-7xl mx-auto px-6 mb-16 overflow-x-auto">
+    <div class="flex gap-4 items-center">
+      <a href="/" class="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full font-bold whitespace-nowrap shadow-md font-body">
+        <span class="material-symbols-outlined text-sm">home</span>
+        Todos
+      </a>
+      <% @homepage.categories.each do |category| %>
+        <a href="/p/<%= category.slug.pluralize %>-en-veracruz"
+           class="flex items-center gap-2 bg-surface-container-low text-on-surface-variant hover:bg-surface-container-highest px-6 py-3 rounded-full font-semibold transition-colors whitespace-nowrap font-body">
+          <span class="material-symbols-outlined text-sm"><%= category_icon_for(category.slug) %></span>
+          <%= category.name %>
+        </a>
+      <% end %>
+    </div>
+  </section>
+
+  <%# ===== TRUST BAR (from Stitch — horizontal stats strip) ===== %>
+  <section class="bg-surface-container-low py-8 mb-20">
+    <div class="max-w-7xl mx-auto px-6 flex flex-wrap justify-between gap-8 md:gap-12 text-center md:text-left">
+      <div class="flex-1 min-w-[150px]">
+        <h3 class="text-3xl font-black text-primary font-headline tracking-tight"><%= formatted_metric(@homepage.total_providers) %>+</h3>
+        <p class="text-on-surface-variant font-medium uppercase text-xs tracking-widest font-label">Técnicos activos</p>
+      </div>
+      <div class="flex-1 min-w-[150px]">
+        <h3 class="text-3xl font-black text-primary font-headline tracking-tight">4.8★</h3>
+        <p class="text-on-surface-variant font-medium uppercase text-xs tracking-widest font-label">Promedio satisfacción</p>
+      </div>
+      <div class="flex-1 min-w-[150px]">
+        <h3 class="text-3xl font-black text-primary font-headline tracking-tight">&lt; 1hr</h3>
+        <p class="text-on-surface-variant font-medium uppercase text-xs tracking-widest font-label">Respuesta rápida</p>
+      </div>
+      <div class="flex-1 min-w-[150px]">
+        <h3 class="text-3xl font-black text-primary font-headline tracking-tight">100%</h3>
+        <p class="text-on-surface-variant font-medium uppercase text-xs tracking-widest font-label">Verificados</p>
+      </div>
+    </div>
+  </section>
+
+  <%# ===== PROVIDER GRID (from Stitch — 4-column portrait cards) ===== %>
+  <% if @homepage.featured_providers.any? %>
+    <section class="max-w-7xl mx-auto px-6 mb-32">
+      <div class="flex justify-between items-end mb-10">
+        <div>
+          <h2 class="text-3xl font-black font-headline text-on-surface">Técnicos en tu ciudad</h2>
+          <p class="text-on-surface-variant mt-2 font-body">Los mejores calificados cerca de ti</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <% @homepage.featured_providers.first(4).each do |provider| %>
+          <% work_photo = first_work_photo(provider) %>
+          <% profile = profile_photo_for(provider) %>
+          <% primary_cat = primary_category_for(provider) %>
+          <% rating = average_rating_for(provider) %>
+
+          <a href="<%= provider_profile_path(category_city: provider.slug.split('/').first, slug: provider.slug.split('/').last) %>"
+             class="group cursor-pointer block">
+
+            <%# Card image — portrait aspect ratio (from Stitch: aspect-[4/5]) %>
+            <%# STITCH_PROMPT_v2 correction #2: main image = WORK PHOTO, profile photo as small circle %>
+            <div class="relative aspect-[4/5] rounded-2xl overflow-hidden mb-4 shadow-sm group-hover:shadow-xl transition-all duration-300">
+              <% if work_photo %>
+                <img
+                  alt="Trabajo de <%= provider.name %>"
+                  src="<%= work_photo.url %>"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                >
+              <% else %>
+                <%# STITCH_PROMPT_v2 correction #3: elegant placeholder %>
+                <div class="w-full h-full bg-[#F1F5F9] flex items-center justify-center">
+                  <span class="material-symbols-outlined text-outline-variant" style="font-size: 64px;">construction</span>
+                </div>
+              <% end %>
+
+              <%# Verified badge — top left (from Stitch) %>
+              <div class="absolute top-4 left-4 bg-primary/90 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 backdrop-blur-md">
+                <span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+                Verificado
+              </div>
+
+              <%# STITCH_PROMPT_v2 correction #2: small circular profile photo overlapping bottom-left %>
+              <div class="absolute -bottom-3 left-4 w-10 h-10 rounded-full border-2 border-white overflow-hidden shadow-md z-10 bg-white">
+                <% if profile %>
+                  <img src="<%= profile.url %>" alt="<%= provider.name %>" class="w-full h-full object-cover">
+                <% else %>
+                  <div class="w-full h-full bg-primary flex items-center justify-center">
+                    <span class="text-xs font-bold text-on-primary font-headline"><%= provider_initials(provider.name) %></span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+
+            <%# Card content (from Stitch) %>
+            <div class="space-y-1 px-1">
+              <div class="flex justify-between items-start">
+                <h3 class="font-bold text-lg text-on-surface font-headline"><%= provider.name %></h3>
+                <div class="flex items-center gap-1 text-sm font-bold">
+                  <span class="material-symbols-outlined text-secondary-container text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                  <%= rating %>
+                </div>
+              </div>
+              <p class="text-on-surface-variant text-sm font-body"><%= primary_cat&.name %> · <%= provider.city %></p>
+
+              <%# CTA button (from Stitch — amber/secondary) %>
+              <span class="w-full mt-4 bg-secondary-container hover:bg-secondary text-on-secondary-container hover:text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm font-body block">
+                <span class="material-symbols-outlined">chat</span>
+                Contacta a <%= provider.name.split.first %> 💬
+              </span>
+            </div>
+          </a>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+
+  <%# ===== #UNETE / JOIN SECTION (from Stitch — rounded card with teal bg) ===== %>
+  <section id="unete" class="max-w-7xl mx-auto px-6 mb-20">
+    <div class="bg-primary-container text-on-primary-container rounded-[2.5rem] p-8 md:p-16 flex flex-col md:flex-row items-center gap-12 overflow-hidden relative">
+      <%# Background decoration (from Stitch) %>
+      <div class="absolute -top-24 -right-24 w-64 h-64 bg-primary rounded-full opacity-20 blur-3xl"></div>
+      <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-primary-fixed rounded-full opacity-10 blur-3xl"></div>
+
+      <div class="flex-1 space-y-8 relative z-10">
+        <h2 class="text-4xl md:text-5xl font-black font-headline leading-tight">¿Eres técnico independiente?</h2>
+        <p class="text-xl text-primary-fixed leading-relaxed max-w-lg font-body">
+          Únete a la red más grande de profesionales en México. Aumenta tus clientes y gestiona tu trabajo fácilmente.
+        </p>
+
+        <%# Benefits grid (from Stitch) %>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary-fixed">payments</span>
+            </div>
+            <span class="font-bold font-body">Pagos directos y seguros</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary-fixed">trending_up</span>
+            </div>
+            <span class="font-bold font-body">Más visibilidad local</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary-fixed">schedule</span>
+            </div>
+            <span class="font-bold font-body">Flexibilidad de horario</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary-fixed">verified</span>
+            </div>
+            <span class="font-bold font-body">Perfil profesional verificado</span>
+          </div>
+        </div>
+
+        <a href="<%= whatsapp_onboarding_link %>"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="inline-block bg-primary-fixed hover:bg-white text-primary px-10 py-4 rounded-2xl font-black text-lg transition-all shadow-xl active:scale-95 group font-headline">
+          Únete gratis <span class="inline-block transition-transform group-hover:translate-x-1">→</span>
+        </a>
+      </div>
+
+      <%# Side image (from Stitch) %>
+      <div class="flex-1 hidden md:block relative z-10">
+        <div class="relative bg-white/10 p-4 rounded-[2rem] backdrop-blur-md">
+          <img
+            alt="Técnico usando su celular"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCQHBx6NPtjbBNdAPVDZT_q2YZqr8zzzXmgskG58aj1oLZwBnQLRy1SWTpga3zaD05NFRaL2FSq6QEaQBGAm6Xyl9m0z9maCxx2knXH7HshalGC51nAfUIv_EJsOUddEjwoSH9zVli-YCJQxMzBL6XuZRHTyfYet8j-cbw0urWuOywTn9YUpkOMjGPvlzneOfOqucYNuJGD0b67PMTC2A_2chQcM5tNDVF8VoZW51SNnvfUFJE10GHOEhN5blZYXMfb4vc-0c9sQE"
+            class="w-full h-[400px] object-cover rounded-[1.5rem]"
+            loading="lazy"
+          >
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<%# ===== FOOTER (from Stitch) ===== %>
+<footer class="w-full mt-20 bg-slate-50 font-body text-sm">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-8 px-8 py-12 max-w-7xl mx-auto">
+    <div class="col-span-2 md:col-span-1 space-y-4">
+      <div class="text-xl font-bold text-primary font-headline">Trato</div>
+      <p class="text-slate-500 pr-8">La plataforma líder para conectar con los mejores técnicos profesionales en México.</p>
+    </div>
+    <div class="space-y-4">
+      <p class="font-bold text-slate-900 uppercase text-xs tracking-widest">Servicios</p>
+      <ul class="space-y-2">
+        <li><a href="/p/fontaneros-en-veracruz" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Fontaneros</a></li>
+        <li><a href="/p/electricistas-en-veracruz" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Electricistas</a></li>
+        <li><a href="/p/carpinteros-en-veracruz" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Carpinteros</a></li>
+        <li><a href="/p/albaniles-en-veracruz" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Albañiles</a></li>
+      </ul>
+    </div>
+    <div class="space-y-4">
+      <p class="font-bold text-slate-900 uppercase text-xs tracking-widest">Ciudades</p>
+      <ul class="space-y-2">
+        <li><a href="#" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Veracruz</a></li>
+        <li><a href="#" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Boca del Río</a></li>
+        <li><a href="#" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">CDMX</a></li>
+        <li><a href="#" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Puebla</a></li>
+      </ul>
+    </div>
+    <div class="space-y-4">
+      <p class="font-bold text-slate-900 uppercase text-xs tracking-widest">Legal</p>
+      <ul class="space-y-2">
+        <li><a href="#" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Términos</a></li>
+        <li><a href="#" class="text-slate-500 hover:text-primary underline-offset-4 hover:underline transition-all">Privacidad</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="max-w-7xl mx-auto px-8 py-6 border-t border-slate-200/60 flex flex-col md:flex-row justify-between items-center gap-4">
+    <p class="text-slate-500">© <%= Date.current.year %> Trato. Tu hogar, en buenas manos.</p>
+    <span class="text-slate-400">Hecho en México 🇲🇽</span>
+  </div>
+</footer>
+
+<%# ===== FLOATING WHATSAPP BUTTON (from Stitch) ===== %>
+<a href="<%= whatsapp_onboarding_link %>"
+   target="_blank"
+   rel="noopener noreferrer"
+   class="fixed bottom-8 right-8 w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-2xl z-50 hover:scale-110 transition-transform active:scale-95"
+   aria-label="Contactar por WhatsApp">
+  <svg class="w-10 h-10 text-[#25D366]" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+  </svg>
+</a>
