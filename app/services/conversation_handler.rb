@@ -25,7 +25,12 @@ class ConversationHandler
 
     return send_welcome_and_store_state(from) if state.nil? || state["stage"] == "new"
     return handle_onboarding_welcome(from, body, state) if state["stage"] == "onboarding_welcome"
-    return OnboardingService.call(from: from, body: body) if state["stage"] == "onboarding"
+    return OnboardingService.call(from: from, body: body) if onboarding_in_progress?(state)
+  end
+
+  def self.onboarding_in_progress?(state)
+    stage = state["stage"]
+    stage == "onboarding" || stage&.start_with?("collecting_", "bio_", "explaining_") || stage == "complete"
   end
 
   # --- Private helpers ---
@@ -78,5 +83,5 @@ class ConversationHandler
   private_class_method :provider_by_phone, :provider_by_short_uuid,
                        :route_to_provider, :route_to_client,
                        :load_onboarding_state, :send_welcome_and_store_state,
-                       :handle_onboarding_welcome
+                       :handle_onboarding_welcome, :onboarding_in_progress?
 end
