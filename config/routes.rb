@@ -14,6 +14,9 @@ Rails.application.routes.draw do
   get "/webhooks/whatsapp", to: "webhooks#verify"
   post "/webhooks/whatsapp", to: "webhooks#receive"
 
+  # Public provider profile page — SEO-friendly URL, no auth required
+  get "/p/:category_city/:slug", to: "providers#show", as: :provider_profile
+
   # Health check
   get "up" => "rails/health#show", as: :rails_health_check
 end

@@ -1,0 +1,293 @@
+<% content_for(:title) { "#{@profile.provider.name} — #{@profile.primary_category&.name} en #{@profile.provider.city} | Trato" } %>
+<% content_for(:meta_description) { truncate(@profile.provider.bio, length: 160) } %>
+
+<%# ===== TOP NAVIGATION (matches Stitch nav) ===== %>
+<nav class="fixed top-0 w-full z-50 bg-[#F9F9FF]/80 backdrop-blur-md">
+  <div class="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
+    <a href="/" class="text-2xl font-extrabold text-[#0F766E] font-[Plus_Jakarta_Sans]">Trato</a>
+    <div class="hidden md:flex items-center gap-8">
+      <a href="/#unete" class="text-[#3E4947] hover:text-[#0F766E] font-[Manrope] transition-colors">¿Eres técnico? Únete</a>
+      <a href="/login" class="px-5 py-2 rounded-xl text-[#0F766E] font-semibold hover:bg-[#F0F3FF] transition-colors">Iniciar sesión</a>
+    </div>
+  </div>
+</nav>
+
+<main class="pt-24 pb-20 px-6 max-w-7xl mx-auto">
+
+  <%# ===== PROFILE HERO SECTION ===== %>
+  <section class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start mb-12 lg:mb-16">
+
+    <%# Left column: photo + name + stats %>
+    <div class="lg:col-span-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end">
+
+      <%# Profile photo with verified badge %>
+      <div class="relative shrink-0">
+        <% if @profile.profile_photo %>
+          <div class="w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden ring-4 ring-white shadow-xl">
+            <img
+              src="<%= @profile.profile_photo.url %>"
+              alt="Foto de <%= @profile.provider.name %>"
+              class="w-full h-full object-cover"
+              loading="eager"
+            >
+          </div>
+        <% else %>
+          <div class="w-36 h-36 md:w-48 md:h-48 rounded-full bg-[#0F766E] flex items-center justify-center ring-4 ring-white shadow-xl">
+            <span class="text-4xl md:text-5xl font-extrabold text-white font-[Plus_Jakarta_Sans]"><%= provider_initials(@profile.provider.name) %></span>
+          </div>
+        <% end %>
+        <div class="absolute bottom-2 right-2 bg-[#005C55] text-white p-2 rounded-full shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+            <path fill-rule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" />
+          </svg>
+        </div>
+      </div>
+
+      <%# Name, category badge, location, stats grid %>
+      <div class="flex-1 text-center md:text-left">
+        <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
+          <h1 class="text-3xl md:text-4xl lg:text-5xl font-extrabold font-[Plus_Jakarta_Sans] text-[#111C2D] tracking-tight">
+            <%= @profile.provider.name %>
+          </h1>
+          <% if @profile.primary_category %>
+            <span class="px-3 py-1 rounded-full bg-[#9CF2E8] text-[#00201D] text-sm font-bold flex items-center gap-1">
+              🔧 <%= @profile.primary_category.name %>
+            </span>
+          <% end %>
+        </div>
+
+        <%# Secondary categories as chips %>
+        <% secondary_categories = @profile.categories.reject(&:primary?) %>
+        <% if secondary_categories.any? %>
+          <div class="flex flex-wrap justify-center md:justify-start gap-2 mb-2">
+            <% secondary_categories.each do |category| %>
+              <span class="px-3 py-1 rounded-full bg-[#F0F3FF] text-[#3E4947] text-xs font-semibold">
+                <%= category.name %>
+              </span>
+            <% end %>
+          </div>
+        <% end %>
+
+        <%# Location %>
+        <p class="text-lg text-[#3E4947] flex items-center justify-center md:justify-start gap-2 mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-[#005C55]">
+            <path fill-rule="evenodd" d="m11.54 22.351.07.04.028.016a.76.76 0 0 0 .723 0l.028-.015.071-.041a16.975 16.975 0 0 0 1.144-.742 19.58 19.58 0 0 0 2.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 0 0-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 0 0 2.682 2.282 16.975 16.975 0 0 0 1.145.742ZM12 13.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clip-rule="evenodd" />
+          </svg>
+          <%= @profile.provider.city %><%= ", #{@profile.provider.service_area}" if @profile.provider.service_area.present? %>
+        </p>
+
+        <%# Stats grid: rating, jobs, trust stats %>
+        <div class="grid grid-cols-3 gap-6 pt-4" style="border-top: 1px solid rgba(189,201,198,0.3);">
+          <div>
+            <div class="text-2xl font-extrabold font-[Plus_Jakarta_Sans] text-[#005C55]"><%= @profile.stats[:average_rating] %></div>
+            <div class="text-xs font-bold uppercase tracking-wider text-[#3E4947]">Estrellas</div>
+          </div>
+          <div>
+            <div class="text-2xl font-extrabold font-[Plus_Jakarta_Sans] text-[#005C55]"><%= @profile.stats[:total_jobs] %>+</div>
+            <div class="text-xs font-bold uppercase tracking-wider text-[#3E4947]">Trabajos</div>
+          </div>
+          <div>
+            <div class="text-2xl font-extrabold font-[Plus_Jakarta_Sans] text-[#005C55]">
+              <%= formatted_member_since(@profile.stats[:member_since]) %>
+            </div>
+            <div class="text-xs font-bold uppercase tracking-wider text-[#3E4947]">Miembro desde</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Right column: Sticky CTA card (desktop) %>
+    <div class="lg:col-span-4 lg:sticky lg:top-28">
+      <div class="bg-white rounded-xl p-6 md:p-8 shadow-[0_32px_32px_rgba(17,28,45,0.06)]">
+        <% if @profile.provider.base_price&.positive? %>
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <span class="text-3xl font-extrabold font-[Plus_Jakarta_Sans]">$<%= @profile.provider.base_price.to_i %></span>
+              <span class="text-[#3E4947]"> MXN</span>
+            </div>
+            <span class="text-sm font-bold text-[#005C55]">Precio base visita</span>
+          </div>
+        <% end %>
+
+        <a
+          href="<%= @profile.provider.assistant_whatsapp_link %>"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="w-full py-4 rounded-xl bg-gradient-to-r from-[#855300] to-[#FEA619] text-white font-extrabold text-lg shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
+        >
+          Contacta a <%= @profile.provider.name.split.first %> 💬
+        </a>
+
+        <%# Trust stats row (from STITCH_PROMPT_v2.md correction #6) %>
+        <p class="text-xs text-center text-[#3E4947] leading-relaxed mt-4">
+          Miembro desde <span class="font-bold"><%= formatted_member_since(@profile.stats[:member_since]) %></span>
+          · <%= @profile.stats[:total_jobs] %> trabajos registrados
+          · Responde en < 1 hora
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <%# ===== BIO & SPECIALTIES (Asymmetric layout from Stitch) ===== %>
+  <section class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12 lg:mb-20">
+    <div class="lg:col-span-7 space-y-10 lg:space-y-12">
+
+      <%# Bio card — surface-container-low background, no borders %>
+      <div class="bg-[#F0F3FF] rounded-xl p-6 md:p-8 relative overflow-hidden">
+        <h3 class="text-2xl font-extrabold font-[Plus_Jakarta_Sans] mb-4">Sobre mi trabajo</h3>
+
+        <% if @profile.provider.bio.present? %>
+          <p class="text-[#3E4947] text-base md:text-lg leading-relaxed mb-6 whitespace-pre-line"><%= @profile.provider.bio %></p>
+        <% end %>
+
+        <%# Visit price highlight box %>
+        <% if @profile.provider.base_price&.positive? %>
+          <div class="inline-flex items-center gap-4 bg-white px-6 py-4 rounded-xl border-l-4 border-[#FEA619] shadow-[0_32px_32px_rgba(17,28,45,0.06)]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7 text-[#FEA619] shrink-0">
+              <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd" />
+            </svg>
+            <div>
+              <div class="font-bold text-[#111C2D]">Visita de diagnóstico: <%= formatted_price(@profile.provider.base_price) %></div>
+              <div class="text-sm text-[#3E4947]">Se descuenta del total si se realiza el trabajo.</div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <%# Specialties — teal pill chips (matching Stitch: bg-primary text-on-primary) %>
+      <% specialties = extract_specialties(@profile.provider, @profile.categories) %>
+      <% if specialties.any? %>
+        <div>
+          <h3 class="text-2xl font-extrabold font-[Plus_Jakarta_Sans] mb-6">Especialidades</h3>
+          <div class="flex flex-wrap gap-3">
+            <% specialties.each do |specialty| %>
+              <span class="px-5 py-2.5 rounded-full bg-[#005C55] text-white font-bold text-sm shadow-sm">
+                <%= specialty %>
+              </span>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <%# ===== WORK PHOTO GALLERY (Masonry grid from Stitch) ===== %>
+  <% if @profile.work_photos.any? %>
+    <section class="mb-12 lg:mb-20">
+      <h3 class="text-2xl md:text-3xl font-extrabold font-[Plus_Jakarta_Sans] mb-6 md:mb-8">Galería de trabajos recientes</h3>
+      <div class="columns-2 md:columns-3 gap-4 md:gap-6">
+        <% @profile.work_photos.each do |photo| %>
+          <div class="break-inside-avoid mb-4 md:mb-6 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
+            <img
+              src="<%= photo.url %>"
+              alt="<%= photo.caption.presence || "Trabajo de #{@profile.provider.name}" %>"
+              class="w-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            >
+            <% if photo.caption.present? %>
+              <div class="bg-white px-4 py-3">
+                <p class="text-sm text-[#3E4947]"><%= photo.caption %></p>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+
+  <%# ===== REVIEWS SECTION (Rating distribution + cards from Stitch) ===== %>
+  <% if @profile.reviews.any? %>
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+
+      <%# Rating distribution column %>
+      <div class="lg:col-span-4">
+        <div class="lg:sticky lg:top-28">
+          <h3 class="text-2xl md:text-3xl font-extrabold font-[Plus_Jakarta_Sans] mb-2 flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 md:w-10 md:h-10 text-[#FEA619]">
+              <path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" />
+            </svg>
+            <%= @profile.stats[:average_rating] %> Estrellas
+          </h3>
+          <p class="text-[#3E4947] font-bold mb-8">
+            Basado en <%= @profile.stats[:review_count] %> <%= @profile.stats[:review_count] == 1 ? "reseña" : "reseñas" %> de clientes
+          </p>
+
+          <%# Rating distribution bars %>
+          <div class="space-y-4">
+            <% @profile.rating_distribution.each do |dist| %>
+              <div class="flex items-center gap-4">
+                <span class="text-sm font-bold w-4"><%= dist[:star] %></span>
+                <div class="flex-1 h-3 bg-[#F0F3FF] rounded-full overflow-hidden">
+                  <div class="h-full bg-[#005C55] rounded-full transition-all" style="width: <%= dist[:percentage] %>%"></div>
+                </div>
+                <span class="text-sm text-[#3E4947] w-10 text-right"><%= dist[:percentage] %>%</span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <%# Individual review cards %>
+      <div class="lg:col-span-8 space-y-6">
+        <% @profile.reviews.each do |review| %>
+          <div class="bg-white p-6 md:p-8 rounded-xl shadow-[0_32px_32px_rgba(17,28,45,0.06)]">
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-[#DEE8FF] flex items-center justify-center overflow-hidden">
+                  <span class="text-sm font-bold text-[#3E4947]"><%= provider_initials(review.client.name || "CL") %></span>
+                </div>
+                <div>
+                  <h4 class="font-extrabold text-[#111C2D]"><%= review.client.name || "Cliente" %></h4>
+                  <p class="text-xs text-[#3E4947]"><%= time_ago_in_spanish(review.created_at) %></p>
+                </div>
+              </div>
+              <div class="flex gap-0.5">
+                <%= filled_stars(review.rating) %>
+              </div>
+            </div>
+
+            <% if review.comment.present? %>
+              <p class="text-[#3E4947] leading-relaxed mb-4"><%= review.comment %></p>
+            <% end %>
+
+            <% if review.verified? %>
+              <div class="flex items-center gap-2 text-[#005C55] text-xs font-bold bg-[#9CF2E8] px-3 py-1 rounded-full w-fit">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                  <path fill-rule="evenodd" d="M16.403 12.652a3 3 0 0 0 0-5.304 3 3 0 0 0-3.75-3.751 3 3 0 0 0-5.305 0 3 3 0 0 0-3.751 3.75 3 3 0 0 0 0 5.305 3 3 0 0 0 3.75 3.751 3 3 0 0 0 5.305 0 3 3 0 0 0 3.751-3.75Zm-2.546-4.46a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
+                </svg>
+                ✓ Verificado por Trato
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+</main>
+
+<%# ===== STICKY MOBILE CTA (visible only on mobile, hidden on lg where the card is visible) ===== %>
+<div class="fixed bottom-0 inset-x-0 z-50 p-4 bg-gradient-to-t from-[#F9F9FF] via-[#F9F9FF] to-transparent pointer-events-none lg:hidden">
+  <div class="max-w-7xl mx-auto pointer-events-auto">
+    <a
+      href="<%= @profile.provider.assistant_whatsapp_link %>"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="w-full py-4 rounded-xl bg-gradient-to-r from-[#855300] to-[#FEA619] text-white font-extrabold text-lg shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
+    >
+      Contacta a <%= @profile.provider.name.split.first %> 💬
+    </a>
+  </div>
+</div>
+
+<%# ===== FLOATING WHATSAPP BUTTON (from Stitch design) ===== %>
+<a
+  href="<%= @profile.provider.assistant_whatsapp_link %>"
+  target="_blank"
+  rel="noopener noreferrer"
+  class="fixed bottom-6 right-6 w-16 h-16 bg-white rounded-full shadow-[0_32px_32px_rgba(17,28,45,0.06)] flex items-center justify-center z-40 hover:scale-110 transition-transform hidden lg:flex"
+  aria-label="Contactar por WhatsApp"
+>
+  <svg fill="#25D366" height="32" viewBox="0 0 24 24" width="32" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.185-.573c.948.517 1.939.895 3.146.896 3.181 0 5.767-2.587 5.768-5.766 0-3.181-2.587-5.768-5.768-5.768zm3.393 8.221c-.154.433-.891.812-1.214.843-.321.031-.645.064-1.875-.413-1.455-.564-2.394-2.037-2.467-2.133-.072-.096-.599-.797-.599-1.518 0-.721.378-1.077.513-1.221.135-.144.298-.18.397-.18.099 0 .198.001.284.006.09.004.21-.034.329.252.12.288.411 1.002.447 1.074.036.072.06.156.012.252-.048.096-.072.156-.144.24-.072.084-.15.187-.216.252-.072.072-.147.151-.063.294.084.144.374.618.806 1.002.557.495 1.026.648 1.17.72.144.072.228.06.312-.036.084-.096.36-4.2.456-.564.096-.144.192-.12.324-.072.132.048.84.396.984.468.144.072.24.108.276.168.036.06.036.348-.118.78zM12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"/>
+  </svg>
+</a>
