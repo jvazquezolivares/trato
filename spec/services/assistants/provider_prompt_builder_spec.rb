@@ -7,7 +7,7 @@ RSpec.describe Assistants::ProviderPromptBuilder do
     instance_double(
       Provider,
       id: 1, name: "Miguel García", phone: "5212211234567",
-      city: "Veracruz"
+      city: "Veracruz", facebook_token: nil
     )
   end
 

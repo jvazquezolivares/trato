@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe ProviderAssistant do
-  let(:provider) { instance_double(Provider, id: 1, name: "Miguel García", phone: "5212211234567", city: "Veracruz", short_uuid: "a3f8c2d1") }
+  let(:provider) { instance_double(Provider, id: 1, name: "Miguel García", phone: "5212211234567", city: "Veracruz", short_uuid: "a3f8c2d1", facebook_token: nil) }
   let(:conversation) { instance_double(Conversation, id: 1, context: {}, messages: messages_relation, "stage=" => nil, "context=" => nil, "last_message_at=" => nil) }
   let(:messages_relation) { double("messages_relation") }
   let(:ordered_messages) { double("ordered_messages") }
@@ -329,16 +329,111 @@ RSpec.describe ProviderAssistant do
     end
 
     context "when action is none" do
-      it "does not call JobRegistrationService, WorkDayService, or TaskService" do
+      it "does not call JobRegistrationService, WorkDayService, TaskService, or SocialMediaService" do
         allow(JobRegistrationService).to receive(:call)
         allow(Assistants::WorkDayService).to receive(:call)
         allow(Assistants::TaskService).to receive(:call)
+        allow(Assistants::SocialMediaService).to receive(:call)
 
         described_class.call(provider: provider, body: "Hola")
 
         expect(JobRegistrationService).not_to have_received(:call)
         expect(Assistants::WorkDayService).not_to have_received(:call)
         expect(Assistants::TaskService).not_to have_received(:call)
+        expect(Assistants::SocialMediaService).not_to have_received(:call)
+      end
+    end
+
+    context "when action is initiate_social_post" do
+      let(:claude_response) do
+        {
+          "message" => "¿Quieres publicar esta foto en tus redes sociales?",
+          "action" => "initiate_social_post",
+          "action_data" => {
+            "photo_url" => "https://trato-photos.s3.amazonaws.com/photos/panel.jpg",
+            "description" => "Panel eléctrico"
+          },
+          "new_stage" => "social_media_flow",
+          "updated_context" => {},
+          "should_save_message" => false,
+          "intent" => nil
+        }
+      end
+
+      before do
+        allow(Assistants::SocialMediaService).to receive(:call).and_return(nil)
+      end
+
+      it "delegates to Assistants::SocialMediaService" do
+        described_class.call(provider: provider, body: "Mira esta foto", media_url: "https://example.com/photo.jpg")
+
+        expect(Assistants::SocialMediaService).to have_received(:call).with(
+          provider: provider,
+          action: "initiate_social_post",
+          action_data: claude_response["action_data"]
+        )
+      end
+    end
+
+    context "when action is generate_caption" do
+      let(:claude_response) do
+        {
+          "message" => "Aquí va el pie de foto: ¡Trabajo terminado! 🔌",
+          "action" => "generate_caption",
+          "action_data" => {
+            "photo_url" => "https://trato-photos.s3.amazonaws.com/photos/panel.jpg",
+            "description" => "Panel eléctrico residencial"
+          },
+          "new_stage" => "social_media_flow",
+          "updated_context" => {},
+          "should_save_message" => false,
+          "intent" => nil
+        }
+      end
+
+      before do
+        allow(Assistants::SocialMediaService).to receive(:call).and_return(nil)
+      end
+
+      it "delegates to Assistants::SocialMediaService" do
+        described_class.call(provider: provider, body: "Panel eléctrico residencial")
+
+        expect(Assistants::SocialMediaService).to have_received(:call).with(
+          provider: provider,
+          action: "generate_caption",
+          action_data: claude_response["action_data"]
+        )
+      end
+    end
+
+    context "when action is approve_caption" do
+      let(:claude_response) do
+        {
+          "message" => "¡Publicando tu foto! 🎉",
+          "action" => "approve_caption",
+          "action_data" => {
+            "photo_id" => "10",
+            "caption" => "¡Trabajo terminado! 🔌 #Electricista"
+          },
+          "new_stage" => "active",
+          "updated_context" => {},
+          "should_save_message" => true,
+          "intent" => "social_post_published"
+        }
+      end
+
+      before do
+        allow(Assistants::SocialMediaService).to receive(:call).and_return(nil)
+      end
+
+      it "delegates to Assistants::SocialMediaService" do
+        described_class.call(provider: provider, body: "Sí, publícala")
+
+        expect(Assistants::SocialMediaService).to have_received(:call).with(
+          provider: provider,
+          action: "approve_caption",
+          action_data: claude_response["action_data"]
+        )
       end
     end
   end
@@ -373,6 +468,22 @@ RSpec.describe ProviderAssistant do
 
       expect(ClaudeService).to have_received(:call).with(
         hash_including(system_prompt: a_string_matching(/Martínez/))
+      )
+    end
+
+    it "includes social media instructions in the prompt" do
+      described_class.call(provider: provider, body: "Hola")
+
+      expect(ClaudeService).to have_received(:call).with(
+        hash_including(system_prompt: a_string_matching(/PUBLICACIÓN EN REDES SOCIALES/))
+      )
+    end
+
+    it "includes facebook connection status in the prompt" do
+      described_class.call(provider: provider, body: "Hola")
+
+      expect(ClaudeService).to have_received(:call).with(
+        hash_including(system_prompt: a_string_matching(/Facebook conectado: no/))
       )
     end
   end

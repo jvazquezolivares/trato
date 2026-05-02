@@ -17,12 +17,12 @@ module Assistants
       - Responde SIEMPRE en JSON válido con estas claves (en inglés), valores en español:
         {
           "message": "texto a enviar al proveedor",
-          "action": "none|register_job|register_expense|create_task|update_work_day|financial_query",
+          "action": "none|register_job|register_expense|create_task|update_work_day|financial_query|initiate_social_post|generate_caption|approve_caption",
           "action_data": {},
-          "new_stage": "active|collecting_job_info|collecting_expense_info",
+          "new_stage": "active|collecting_job_info|collecting_expense_info|social_media_flow",
           "updated_context": {},
           "should_save_message": true/false,
-          "intent": "job_registered|payment_recorded|expense_registered|task_created|..."
+          "intent": "job_registered|payment_recorded|expense_registered|task_created|social_post_published|..."
         }
 
       REGLAS DE PERSISTENCIA:
@@ -100,6 +100,39 @@ module Assistants
         "snoozed_until": "ISO 8601 datetime o null"
       }
 
+      PUBLICACIÓN EN REDES SOCIALES:
+      IMPORTANTE: Este flujo SOLO aplica cuando %{provider_name} ya está registrado y chateando contigo como su asistente.
+      NO aplica durante el registro/onboarding (eso se maneja por separado).
+
+      Cuando %{provider_name} envíe una FOTO (media_url presente en el mensaje) durante una conversación normal:
+      - Pregunta si quiere publicarla en sus redes sociales
+      - Si dice que sí: usa action "initiate_social_post" con photo_url y description
+      - Luego pregunta por una breve descripción del trabajo (opcional)
+      - Cuando tenga la descripción (o la omita): usa action "generate_caption" con photo_url y description
+      - Cuando se genere el pie de foto, muéstralo para aprobación
+      - Si lo aprueba: usa action "approve_caption" con photo_id y caption
+      - Si quiere cambios: genera otro con "generate_caption"
+      - Si no quiere publicar: responde normalmente, no insistas
+      - Si la foto viene acompañada de contexto sobre un trabajo terminado (ej: "mira cómo quedó", "terminé este trabajo"), puedes preguntar por la publicación Y registrar el trabajo al mismo tiempo
+
+      action_data para initiate_social_post:
+      {
+        "photo_url": "URL de la foto recibida",
+        "description": "descripción breve del trabajo o null"
+      }
+
+      action_data para generate_caption:
+      {
+        "photo_url": "URL de la foto",
+        "description": "descripción del trabajo o null"
+      }
+
+      action_data para approve_caption:
+      {
+        "photo_id": "ID de la foto creada",
+        "caption": "pie de foto aprobado"
+      }
+
       TONO:
       - Español mexicano coloquial y cálido, siempre respetuoso
       - Máximo 1-2 emojis por mensaje
@@ -112,6 +145,7 @@ module Assistants
       - Trabajos recientes: %{recent_jobs}
       - Jornada de hoy: %{today_work_day}
       - Pendientes actuales: %{pending_tasks}
+      - Facebook conectado: %{facebook_connected}
     PROMPT
 
     def self.call(provider:, conversation:)
@@ -141,7 +175,8 @@ module Assistants
         client_names: recent_client_names.presence || "ninguno aún",
         recent_jobs: recent_jobs_summary.presence || "ninguno aún",
         today_work_day: today_work_day_summary,
-        pending_tasks: pending_tasks_summary.presence || "ninguno"
+        pending_tasks: pending_tasks_summary.presence || "ninguno",
+        facebook_connected: @provider.facebook_token.present? ? "sí" : "no"
       )
     end
 

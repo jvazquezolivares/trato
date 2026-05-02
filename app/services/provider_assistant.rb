@@ -68,6 +68,8 @@ class ProviderAssistant
       Assistants::WorkDayService.call(provider: @provider, action_data: action_data)
     when "create_task"
       Assistants::TaskService.call(provider: @provider, action_data: action_data)
+    when "initiate_social_post", "generate_caption", "approve_caption"
+      Assistants::SocialMediaService.call(provider: @provider, action: action, action_data: action_data)
     end
   end
 
