@@ -19,7 +19,11 @@ RSpec.describe ConversationHandler, type: :service do
       let(:provider) { build_stubbed(:provider) }
 
       before do
-        allow(Provider).to receive(:find_by).with(phone: provider.phone).and_return(provider)
+        # Stub the includes chain that ConversationHandler uses
+        provider_scope = instance_double(ActiveRecord::Relation)
+        allow(Provider).to receive(:includes).and_return(provider_scope)
+        allow(provider_scope).to receive(:find_by).with(phone: provider.phone).and_return(provider)
+        allow(provider_scope).to receive(:find_by).with(short_uuid: anything).and_return(nil)
         allow(Provider).to receive(:find_by).with(short_uuid: anything).and_return(nil)
       end
 

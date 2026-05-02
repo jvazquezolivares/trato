@@ -146,7 +146,7 @@ class AdminService
   # Returns detailed data for a single provider including financial summary,
   # recent conversations, and recent jobs.
   def self.provider_detail(provider_id)
-    provider = Provider.includes(:provider_categories, :reviews, :photos).find_by(id: provider_id)
+    provider = Provider.includes(:provider_categories).find_by(id: provider_id)
 
     return nil unless provider
 

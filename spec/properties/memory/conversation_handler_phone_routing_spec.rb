@@ -20,8 +20,11 @@ RSpec.describe ConversationHandler, "P1: routing by phone match", type: :propert
 
   context "when phone matches a provider" do
     before do
-      allow(Provider).to receive(:find_by).and_return(nil)
-      allow(Provider).to receive(:find_by).with(phone: provider.phone).and_return(provider)
+      # Stub the includes chain that ConversationHandler uses
+      provider_scope = instance_double(ActiveRecord::Relation)
+      allow(Provider).to receive(:includes).and_return(provider_scope)
+      allow(provider_scope).to receive(:find_by).with(phone: provider.phone).and_return(provider)
+      allow(provider_scope).to receive(:find_by).with(short_uuid: anything).and_return(nil)
     end
 
     PropertyTestHelper::MEMORY_ITERATIONS.times do |iteration|
