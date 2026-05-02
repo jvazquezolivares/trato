@@ -90,10 +90,21 @@ class ClaudeService
 
   def self.parse_response(api_response)
     raw_text = extract_text(api_response)
-    parsed = JSON.parse(raw_text)
+
+    # Remove markdown code blocks if present (```json ... ``` or ``` ... ```)
+    cleaned_text = raw_text&.strip
+    if cleaned_text&.start_with?('```')
+      # Remove opening ```json or ```
+      cleaned_text = cleaned_text.sub(/\A```(?:json)?\n?/, '')
+      # Remove closing ```
+      cleaned_text = cleaned_text.sub(/\n?```\z/, '')
+      cleaned_text = cleaned_text.strip
+    end
+
+    parsed = JSON.parse(cleaned_text)
 
     unless parsed.is_a?(Hash)
-      Rails.logger.warn("[ClaudeService] Response is not a JSON object: #{raw_text.truncate(500)}")
+      Rails.logger.warn("[ClaudeService] Response is not a JSON object: #{cleaned_text.truncate(500)}")
       return SAFE_FALLBACK.dup
     end
 

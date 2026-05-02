@@ -165,6 +165,46 @@ RSpec.describe ClaudeService do
       end
     end
 
+    context "when Claude returns JSON wrapped in markdown code blocks" do
+      let(:markdown_response) do
+        json_content = valid_response_body.to_json
+        wrapped_text = "```json\n#{json_content}\n```"
+        { "content" => [ { "text" => wrapped_text } ] }
+      end
+
+      before do
+        allow(messages_double).to receive(:create).and_return(markdown_response)
+      end
+
+      it "strips the markdown and parses the JSON correctly" do
+        result = described_class.call(
+          model: :haiku,
+          system_prompt: system_prompt,
+          user_message: user_message
+        )
+
+        expect(result["message"]).to eq("Registrado ✅ ¿Cuánto te pagaron?")
+        expect(result["action"]).to eq("register_job")
+        expect(result["should_save_message"]).to be(true)
+      end
+
+      it "handles code blocks without language specifier" do
+        json_content = valid_response_body.to_json
+        wrapped_text = "```\n#{json_content}\n```"
+        response = { "content" => [ { "text" => wrapped_text } ] }
+
+        allow(messages_double).to receive(:create).and_return(response)
+
+        result = described_class.call(
+          model: :haiku,
+          system_prompt: system_prompt,
+          user_message: user_message
+        )
+
+        expect(result["message"]).to eq("Registrado ✅ ¿Cuánto te pagaron?")
+      end
+    end
+
     context "when Claude returns a non-object JSON (e.g. array)" do
       let(:array_response) do
         { "content" => [ { "text" => "[1, 2, 3]" } ] }
