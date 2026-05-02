@@ -72,3 +72,16 @@
   --font-body: 'Manrope', sans-serif;
   --font-label: 'Manrope', sans-serif;
 }
+
+/*
+ * Stitch design system — custom utility classes.
+ * These replicate the editorial design tokens from the Stitch output
+ * that cannot be expressed as pure Tailwind utilities.
+ */
+.editorial-shadow {
+  box-shadow: 0 32px 64px -12px rgba(17, 28, 45, 0.06);
+}
+
+.ghost-border {
+  border: 1px solid rgba(189, 201, 198, 0.15);
+}

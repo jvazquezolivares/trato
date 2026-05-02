@@ -1,51 +1,47 @@
 <% content_for(:title) { "Iniciar sesión — Trato" } %>
 
-<main class="flex-grow flex items-center justify-center p-6 sm:p-12 relative overflow-hidden min-h-screen bg-[#F8FAFC]">
-  <%# Abstract background blobs for warmth — Stitch design %>
-  <div class="absolute top-0 right-0 w-96 h-96 bg-[#9cf2e8]/20 rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none"></div>
-  <div class="absolute bottom-0 left-0 w-96 h-96 bg-[#ffddb8]/20 rounded-full blur-3xl -ml-48 -mb-48 pointer-events-none"></div>
+<%# Stitch design: "Trato - Acceso" — phone input step %>
+<main class="flex-grow flex items-center justify-center p-6 sm:p-12 relative overflow-hidden">
+  <%# Abstract background blobs for warmth %>
+  <div class="absolute top-0 right-0 w-96 h-96 bg-primary-fixed/20 rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none"></div>
+  <div class="absolute bottom-0 left-0 w-96 h-96 bg-secondary-fixed/20 rounded-full blur-3xl -ml-48 -mb-48 pointer-events-none"></div>
 
   <div class="w-full max-w-md z-10">
     <%# Brand identity %>
     <div class="text-center mb-10">
       <a href="<%= root_path %>">
-        <span class="text-3xl font-[Plus_Jakarta_Sans] font-extrabold tracking-tight text-[#005C55]">Trato</span>
+        <span class="text-3xl font-headline font-extrabold tracking-tight text-primary">Trato</span>
       </a>
     </div>
 
-    <%# Login card — editorial shadow, no borders per design system %>
-    <div class="bg-white rounded-xl p-8" style="box-shadow: 0 32px 64px -12px rgba(17, 28, 45, 0.06);">
+    <%# Login card %>
+    <div class="bg-surface-container-lowest rounded-xl p-8 editorial-shadow">
       <section class="space-y-8">
         <div class="text-center">
-          <h1 class="text-2xl font-[Plus_Jakarta_Sans] font-bold text-[#111C2D] mb-3 tracking-tight">
-            Accede a tu perfil
-          </h1>
-          <p class="text-[#3E4947] text-sm leading-relaxed max-w-[280px] mx-auto">
+          <h1 class="text-2xl font-headline font-bold text-on-surface mb-3 tracking-tight">Accede a tu perfil</h1>
+          <p class="text-on-surface-variant text-sm leading-relaxed max-w-[280px] mx-auto">
             Te enviaremos un código por WhatsApp para validar tu identidad.
           </p>
         </div>
 
         <%# Flash messages %>
         <% if flash[:notice] %>
-          <div class="p-3 bg-[#9cf2e8]/20 rounded-xl text-sm text-[#005C55] font-medium" role="status">
+          <div class="p-3 bg-primary-fixed/20 rounded-xl text-sm text-primary font-medium" role="status">
             <%= flash[:notice] %>
           </div>
         <% end %>
         <% if flash[:alert] %>
-          <div class="p-3 bg-[#ffdad6] rounded-xl text-sm text-[#93000a]" role="alert">
+          <div class="p-3 bg-error-container rounded-xl text-sm text-on-error-container" role="alert">
             <%= flash[:alert] %>
           </div>
         <% end %>
 
-        <%# Phone input form %>
         <%= form_with url: login_path, method: :post, class: "space-y-6", data: { turbo: false } do |f| %>
           <div class="space-y-2">
-            <label for="phone" class="text-xs font-semibold uppercase tracking-wider text-[#3E4947] ml-1">
-              Teléfono
-            </label>
+            <label for="phone" class="text-xs font-semibold uppercase tracking-wider text-on-surface-variant ml-1">Teléfono</label>
             <div class="relative group">
               <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <span class="text-[#111C2D] font-medium border-r pr-3" style="border-color: rgba(189, 201, 198, 0.3);">+52</span>
+                <span class="text-on-surface font-medium border-r border-outline-variant/30 pr-3">+52</span>
               </div>
               <input
                 type="tel"
@@ -56,18 +52,17 @@
                 autocomplete="tel"
                 inputmode="numeric"
                 placeholder="55 1234 5678"
-                class="w-full pl-16 pr-4 py-4 bg-[#F0F3FF] rounded-xl focus:ring-2 focus:ring-[#005C55]
-                       focus:border-transparent outline-none transition-all placeholder:text-[#6E7977]/50
-                       font-medium text-lg text-[#111C2D]"
-                style="border: 1px solid rgba(189, 201, 198, 0.15);"
+                class="w-full pl-16 pr-4 py-4 bg-surface-container-low ghost-border rounded-xl
+                       focus:ring-2 focus:ring-primary focus:border-transparent outline-none
+                       transition-all placeholder:text-outline/50 font-medium text-lg"
               >
             </div>
           </div>
 
           <button
             type="submit"
-            class="w-full py-4 bg-gradient-to-r from-[#005C55] to-[#0F766E] text-white font-bold rounded-xl
-                   shadow-lg shadow-[#005C55]/20 hover:scale-[0.98] transition-transform
+            class="w-full py-4 bg-linear-to-r from-primary to-primary-container text-on-primary font-bold
+                   rounded-xl shadow-lg shadow-primary/20 hover:scale-[0.98] transition-transform
                    flex items-center justify-center gap-2 group"
           >
             Enviar código
@@ -77,16 +72,28 @@
       </section>
     </div>
 
-    <%# Contextual footer %>
+    <%# Footer %>
     <footer class="mt-12 text-center">
-      <p class="text-xs text-[#3E4947] font-medium opacity-60">
+      <p class="text-xs text-on-surface-variant font-medium opacity-60">
         © 2025 Trato. Tu hogar, en buenas manos.
       </p>
       <div class="flex justify-center gap-6 mt-4">
-        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Términos</a>
-        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Privacidad</a>
-        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Soporte</a>
+        <a href="#" class="text-xs text-on-surface-variant hover:text-primary transition-colors">Términos</a>
+        <a href="#" class="text-xs text-on-surface-variant hover:text-primary transition-colors">Privacidad</a>
+        <a href="#" class="text-xs text-on-surface-variant hover:text-primary transition-colors">Soporte</a>
       </div>
     </footer>
   </div>
 </main>
+
+<%# Floating WhatsApp help button — Stitch design %>
+<div class="fixed bottom-6 right-6 z-50">
+  <a href="#" class="flex items-center gap-3 bg-surface-container-lowest editorial-shadow pl-4 pr-1 py-1 rounded-full group hover:scale-105 transition-all duration-300">
+    <span class="text-xs font-bold text-on-surface">¿Necesitas ayuda?</span>
+    <div class="w-10 h-10 bg-[#25D366] rounded-full flex items-center justify-center text-white shadow-lg shadow-[#25D366]/20">
+      <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.94 3.659 1.437 5.63 1.438h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+      </svg>
+    </div>
+  </a>
+</div>
