@@ -22,7 +22,7 @@ module Assistants
           "new_stage": "active|collecting_job_info|collecting_expense_info|social_media_flow",
           "updated_context": {},
           "should_save_message": true/false,
-          "intent": "job_registered|payment_recorded|expense_registered|task_created|social_post_published|..."
+          "intent": "job_registered|payment_recorded|expense_registered|task_created|social_post_published|financial_query_answered|..."
         }
 
       REGLAS DE PERSISTENCIA:
@@ -100,6 +100,35 @@ module Assistants
         "snoozed_until": "ISO 8601 datetime o null"
       }
 
+      CONSULTAS FINANCIERAS (action: "financial_query"):
+      Cuando %{provider_name} pregunte sobre sus finanzas, ingresos, gastos, o deudas pendientes:
+      - NUNCA inventes números ni montos. Siempre usa action "financial_query" para obtener datos reales.
+      - El sistema calculará los datos reales y te los dará para que los presentes.
+      - Si la pregunta es clara y puedes determinar el rango de fechas, usa la action directamente.
+      - Si la pregunta es ambigua (ej: "¿cuánto he ganado?"), pregunta para clarificar el periodo:
+        "¿Quieres que te dé los ingresos de hoy, de esta semana, o de este mes?"
+      - Si %{provider_name} da un rango explícito (ej: "desde el 27 de abril"), úsalo directamente.
+      - should_save_message = false para consultas financieras (son solo lectura)
+
+      Tipos de consulta (query_type):
+      - "earnings": ingresos en un rango de fechas
+        Ejemplos: "cuánto llevo hoy", "cuánto gané esta semana", "ingresos del mes"
+      - "expenses": gastos en un rango de fechas
+        Ejemplos: "cuánto gasté esta semana", "gastos del mes"
+      - "outstanding": deudas pendientes (NO necesita fechas, es estado actual)
+        Ejemplos: "cuánto me deben", "quién me debe", "cobros pendientes"
+      - "summary": resumen completo de un periodo (ingresos - gastos + pendientes)
+        Ejemplos: "cómo voy este mes", "resumen de la semana"
+
+      action_data para financial_query:
+      {
+        "query_type": "earnings|expenses|outstanding|summary",
+        "date_from": "YYYY-MM-DD (inicio del rango, null para outstanding)",
+        "date_to": "YYYY-MM-DD (fin del rango, null para outstanding)"
+      }
+
+      Fecha de hoy: %{today_date}
+
       PUBLICACIÓN EN REDES SOCIALES:
       IMPORTANTE: Este flujo SOLO aplica cuando %{provider_name} ya está registrado y chateando contigo como su asistente.
       NO aplica durante el registro/onboarding (eso se maneja por separado).
@@ -176,7 +205,8 @@ module Assistants
         recent_jobs: recent_jobs_summary.presence || "ninguno aún",
         today_work_day: today_work_day_summary,
         pending_tasks: pending_tasks_summary.presence || "ninguno",
-        facebook_connected: @provider.facebook_token.present? ? "sí" : "no"
+        facebook_connected: @provider.facebook_token.present? ? "sí" : "no",
+        today_date: Date.current.to_s
       )
     end
 

@@ -329,11 +329,12 @@ RSpec.describe ProviderAssistant do
     end
 
     context "when action is none" do
-      it "does not call JobRegistrationService, WorkDayService, TaskService, or SocialMediaService" do
+      it "does not call JobRegistrationService, WorkDayService, TaskService, SocialMediaService, or FinancialQueryService" do
         allow(JobRegistrationService).to receive(:call)
         allow(Assistants::WorkDayService).to receive(:call)
         allow(Assistants::TaskService).to receive(:call)
         allow(Assistants::SocialMediaService).to receive(:call)
+        allow(Assistants::FinancialQueryService).to receive(:call)
 
         described_class.call(provider: provider, body: "Hola")
 
@@ -341,6 +342,118 @@ RSpec.describe ProviderAssistant do
         expect(Assistants::WorkDayService).not_to have_received(:call)
         expect(Assistants::TaskService).not_to have_received(:call)
         expect(Assistants::SocialMediaService).not_to have_received(:call)
+        expect(Assistants::FinancialQueryService).not_to have_received(:call)
+      end
+    end
+
+    context "when action is financial_query" do
+      let(:claude_response) do
+        {
+          "message" => "Déjame revisar tus números...",
+          "action" => "financial_query",
+          "action_data" => {
+            "query_type" => "earnings",
+            "date_from" => Date.current.to_s,
+            "date_to" => Date.current.to_s
+          },
+          "new_stage" => "active",
+          "updated_context" => {},
+          "should_save_message" => false,
+          "intent" => "financial_query_answered"
+        }
+      end
+
+      let(:financial_data) do
+        {
+          "query_type" => "earnings",
+          "income" => 3500.0,
+          "job_count" => 2,
+          "date_from" => Date.current.to_s,
+          "date_to" => Date.current.to_s
+        }
+      end
+
+      let(:presentation_response) do
+        {
+          "message" => "Hoy llevas $3,500 de ingresos con 2 trabajos 💰",
+          "action" => "none",
+          "action_data" => {},
+          "new_stage" => "active",
+          "updated_context" => {},
+          "should_save_message" => false,
+          "intent" => "financial_query_answered"
+        }
+      end
+
+      before do
+        allow(Assistants::FinancialQueryService).to receive(:call).and_return(financial_data)
+        # The second Claude call returns the presentation response
+        allow(ClaudeService).to receive(:call).and_return(claude_response, presentation_response)
+      end
+
+      it "calls FinancialQueryService with query_type and date range" do
+        described_class.call(provider: provider, body: "¿Cuánto llevo hoy?")
+
+        expect(Assistants::FinancialQueryService).to have_received(:call).with(
+          provider: provider,
+          query_type: "earnings",
+          date_from: Date.current.to_s,
+          date_to: Date.current.to_s
+        )
+      end
+
+      it "makes a second Claude call with the computed financial data" do
+        described_class.call(provider: provider, body: "¿Cuánto llevo hoy?")
+
+        expect(ClaudeService).to have_received(:call).twice
+      end
+
+      it "sends the presentation response message" do
+        described_class.call(provider: provider, body: "¿Cuánto llevo hoy?")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: "Hoy llevas $3,500 de ingresos con 2 trabajos 💰"
+        )
+      end
+    end
+
+    context "when financial_query service returns an error" do
+      let(:claude_response) do
+        {
+          "message" => "¿De qué periodo quieres los ingresos?",
+          "action" => "financial_query",
+          "action_data" => {
+            "query_type" => "earnings",
+            "date_from" => nil,
+            "date_to" => nil
+          },
+          "new_stage" => "active",
+          "updated_context" => {},
+          "should_save_message" => false,
+          "intent" => nil
+        }
+      end
+
+      before do
+        allow(Assistants::FinancialQueryService).to receive(:call).and_return(
+          { "error" => "Se requiere rango de fechas para esta consulta" }
+        )
+      end
+
+      it "falls back to the first Claude response message" do
+        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: "¿De qué periodo quieres los ingresos?"
+        )
+      end
+
+      it "does not make a second Claude call" do
+        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+
+        expect(ClaudeService).to have_received(:call).once
       end
     end
 
@@ -476,6 +589,22 @@ RSpec.describe ProviderAssistant do
 
       expect(ClaudeService).to have_received(:call).with(
         hash_including(system_prompt: a_string_matching(/PUBLICACIÓN EN REDES SOCIALES/))
+      )
+    end
+
+    it "includes financial query instructions in the prompt" do
+      described_class.call(provider: provider, body: "Hola")
+
+      expect(ClaudeService).to have_received(:call).with(
+        hash_including(system_prompt: a_string_matching(/CONSULTAS FINANCIERAS/))
+      )
+    end
+
+    it "includes today's date in the prompt for financial queries" do
+      described_class.call(provider: provider, body: "Hola")
+
+      expect(ClaudeService).to have_received(:call).with(
+        hash_including(system_prompt: a_string_matching(/Fecha de hoy: #{Date.current}/))
       )
     end
 
