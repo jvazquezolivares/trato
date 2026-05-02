@@ -61,6 +61,18 @@ RSpec.describe ProviderAssistant do
     allow(work_days_relation).to receive(:find_by).with(date: Date.current).and_return(nil)
     allow(work_days_relation).to receive(:find_or_initialize_by).and_return(instance_double(WorkDay, save!: true))
 
+    # Stub tasks chain for pending_tasks_summary
+    tasks_relation = double("tasks_relation")
+    tasks_pending = double("tasks_pending")
+    tasks_ordered = double("tasks_ordered")
+    tasks_limited = double("tasks_limited")
+    allow(provider).to receive(:tasks).and_return(tasks_relation)
+    allow(tasks_relation).to receive(:where).with(status: "pending").and_return(tasks_pending)
+    allow(tasks_pending).to receive(:order).and_return(tasks_ordered)
+    allow(tasks_ordered).to receive(:limit).and_return(tasks_limited)
+    allow(tasks_limited).to receive(:pluck).with(:description).and_return([])
+    allow(tasks_relation).to receive(:create!).and_return(instance_double(Task, id: 1, description: "test"))
+
     allow(ClaudeService).to receive(:call).and_return(claude_response)
     allow(WhatsAppService).to receive(:send_message).and_return(true)
   end
@@ -285,15 +297,48 @@ RSpec.describe ProviderAssistant do
       end
     end
 
+    context "when action is create_task" do
+      let(:claude_response) do
+        {
+          "message" => "Listo, registré tu pendiente 📋",
+          "action" => "create_task",
+          "action_data" => {
+            "description" => "Llamar al señor Pérez",
+            "priority" => "normal",
+            "snoozed_until" => nil
+          },
+          "new_stage" => "active",
+          "updated_context" => {},
+          "should_save_message" => true,
+          "intent" => "task_created"
+        }
+      end
+
+      before do
+        allow(Assistants::TaskService).to receive(:call).and_return(nil)
+      end
+
+      it "delegates to Assistants::TaskService" do
+        described_class.call(provider: provider, body: "Recuérdame llamar al señor Pérez")
+
+        expect(Assistants::TaskService).to have_received(:call).with(
+          provider: provider,
+          action_data: claude_response["action_data"]
+        )
+      end
+    end
+
     context "when action is none" do
-      it "does not call JobRegistrationService or WorkDayService" do
+      it "does not call JobRegistrationService, WorkDayService, or TaskService" do
         allow(JobRegistrationService).to receive(:call)
         allow(Assistants::WorkDayService).to receive(:call)
+        allow(Assistants::TaskService).to receive(:call)
 
         described_class.call(provider: provider, body: "Hola")
 
         expect(JobRegistrationService).not_to have_received(:call)
         expect(Assistants::WorkDayService).not_to have_received(:call)
+        expect(Assistants::TaskService).not_to have_received(:call)
       end
     end
   end

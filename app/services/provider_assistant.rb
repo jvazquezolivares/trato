@@ -66,6 +66,8 @@ class ProviderAssistant
       JobRegistrationService.call(provider: @provider, action: "register_expense", action_data: action_data)
     when "update_work_day"
       Assistants::WorkDayService.call(provider: @provider, action_data: action_data)
+    when "create_task"
+      Assistants::TaskService.call(provider: @provider, action_data: action_data)
     end
   end
 

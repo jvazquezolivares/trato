@@ -47,6 +47,17 @@ RSpec.describe Assistants::ProviderPromptBuilder do
     allow(provider).to receive(:work_days).and_return(work_days_relation)
     allow(work_days_relation).to receive(:find_by).with(date: Date.current).and_return(nil)
 
+    # Stub tasks chain for pending_tasks_summary
+    tasks_relation = double("tasks_relation")
+    tasks_pending = double("tasks_pending")
+    tasks_ordered = double("tasks_ordered")
+    tasks_limited = double("tasks_limited")
+    allow(provider).to receive(:tasks).and_return(tasks_relation)
+    allow(tasks_relation).to receive(:where).with(status: "pending").and_return(tasks_pending)
+    allow(tasks_pending).to receive(:order).and_return(tasks_ordered)
+    allow(tasks_ordered).to receive(:limit).and_return(tasks_limited)
+    allow(tasks_limited).to receive(:pluck).with(:description).and_return([])
+
     allow(messages_relation).to receive(:order).and_return(ordered_messages)
     allow(ordered_messages).to receive(:limit).and_return([])
   end
@@ -143,6 +154,66 @@ RSpec.describe Assistants::ProviderPromptBuilder do
         result = described_class.call(provider: provider, conversation: conversation)
 
         expect(result[:system_prompt]).to include("Cita a las 10")
+      end
+    end
+
+    it "includes create_task action in prompt" do
+      result = described_class.call(provider: provider, conversation: conversation)
+
+      expect(result[:system_prompt]).to include("create_task")
+    end
+
+    it "includes task management instructions in prompt" do
+      result = described_class.call(provider: provider, conversation: conversation)
+
+      expect(result[:system_prompt]).to include("TAREAS Y PENDIENTES")
+    end
+
+    it "includes task intent keywords in prompt" do
+      result = described_class.call(provider: provider, conversation: conversation)
+
+      prompt = result[:system_prompt]
+      expect(prompt).to include("tengo que")
+      expect(prompt).to include("recuérdame")
+      expect(prompt).to include("no se me olvide")
+      expect(prompt).to include("no es lista exhaustiva")
+    end
+
+    context "when provider has no pending tasks" do
+      it "shows 'ninguno' for pending tasks" do
+        result = described_class.call(provider: provider, conversation: conversation)
+
+        expect(result[:system_prompt]).to include("Pendientes actuales: ninguno")
+      end
+    end
+
+    context "when provider has pending tasks" do
+      before do
+        tasks_relation = double("tasks_relation")
+        tasks_pending = double("tasks_pending")
+        tasks_ordered = double("tasks_ordered")
+        tasks_limited = double("tasks_limited")
+        allow(provider).to receive(:tasks).and_return(tasks_relation)
+        allow(tasks_relation).to receive(:where).with(status: "pending").and_return(tasks_pending)
+        allow(tasks_pending).to receive(:order).and_return(tasks_ordered)
+        allow(tasks_ordered).to receive(:limit).and_return(tasks_limited)
+        allow(tasks_limited).to receive(:pluck).with(:description).and_return(
+          ["Llamar al señor Pérez", "Comprar cable calibre 12"]
+        )
+      end
+
+      it "includes pending task descriptions in prompt" do
+        result = described_class.call(provider: provider, conversation: conversation)
+
+        expect(result[:system_prompt]).to include("Llamar al señor Pérez")
+        expect(result[:system_prompt]).to include("Comprar cable calibre 12")
+      end
+
+      it "formats pending tasks as bullet list" do
+        result = described_class.call(provider: provider, conversation: conversation)
+
+        expect(result[:system_prompt]).to include("• Llamar al señor Pérez")
+        expect(result[:system_prompt]).to include("• Comprar cable calibre 12")
       end
     end
   end

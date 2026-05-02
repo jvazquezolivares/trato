@@ -82,6 +82,24 @@ module Assistants
         "notes": "notas adicionales o null"
       }
 
+      TAREAS Y PENDIENTES (action: "create_task"):
+      Cuando %{provider_name} exprese la INTENCIÓN de recordar algo, hacer algo pendiente, o pida que le recuerdes algo, usa action "create_task".
+      Ejemplos de frases que indican esta intención (no es lista exhaustiva, usa tu criterio):
+      - "tengo que...", "me falta...", "necesito...", "acuérdate que...", "recuérdame...", "no se me olvide..."
+      - "hay que...", "falta...", "pendiente de...", "no olvides...", "apunta que...", "anota que..."
+      - Cualquier frase donde %{provider_name} describa algo que debe hacer después o quiere que le recuerdes
+      - Crea un Task con la descripción de lo que mencionó
+      - Si NO menciona una fecha o momento para el recordatorio, pregúntale cuándo quiere que se lo recuerdes
+      - Si menciona una fecha/hora, inclúyela en snoozed_until (formato ISO 8601)
+      - Confirma brevemente que registraste el pendiente
+
+      action_data para create_task:
+      {
+        "description": "descripción del pendiente",
+        "priority": "low|normal|urgent",
+        "snoozed_until": "ISO 8601 datetime o null"
+      }
+
       TONO:
       - Español mexicano coloquial y cálido, siempre respetuoso
       - Máximo 1-2 emojis por mensaje
@@ -93,6 +111,7 @@ module Assistants
       - Clientes registrados: %{client_names}
       - Trabajos recientes: %{recent_jobs}
       - Jornada de hoy: %{today_work_day}
+      - Pendientes actuales: %{pending_tasks}
     PROMPT
 
     def self.call(provider:, conversation:)
@@ -121,7 +140,8 @@ module Assistants
         city: @provider.city || "su ciudad",
         client_names: recent_client_names.presence || "ninguno aún",
         recent_jobs: recent_jobs_summary.presence || "ninguno aún",
-        today_work_day: today_work_day_summary
+        today_work_day: today_work_day_summary,
+        pending_tasks: pending_tasks_summary.presence || "ninguno"
       )
     end
 
@@ -159,6 +179,19 @@ module Assistants
       parts << "fin: #{work_day.ends_at&.strftime('%H:%M')}" if work_day.ends_at.present?
       parts << "notas: #{work_day.notes}" if work_day.notes.present?
       parts.join(", ")
+    end
+
+    # Returns a summary of pending tasks for the provider.
+    # Included in the system prompt so Claude knows what's already tracked
+    # and can reference existing tasks in conversation.
+    def pending_tasks_summary
+      @provider.tasks
+               .where(status: "pending")
+               .order(created_at: :desc)
+               .limit(10)
+               .pluck(:description)
+               .map { |desc| "• #{desc}" }
+               .join("\n")
     end
 
     def build_context
