@@ -20,7 +20,7 @@ RSpec.describe Provider, "P5: slug format", type: :property do
 
         # Allow the provider to find its primary category
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         # Build the slug as the system would
@@ -64,7 +64,7 @@ RSpec.describe Provider, "P5: slug format", type: :property do
 
         # Allow the provider to find its primary category
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug
@@ -91,7 +91,7 @@ RSpec.describe Provider, "P5: slug format", type: :property do
 
         # Allow the provider to find its primary category
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug
@@ -120,7 +120,7 @@ RSpec.describe Provider, "P5: slug format", type: :property do
 
         # Allow the provider to find its primary category
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug
@@ -181,7 +181,7 @@ RSpec.describe Provider, "P5: slug format", type: :property do
 
         # Allow the provider to find its primary category
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug

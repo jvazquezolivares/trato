@@ -392,7 +392,16 @@ class OnboardingService
   def create_provider_and_complete
     provider = build_provider
     create_categories(provider)
+
+    # Build and validate slug
     provider.slug = provider.build_slug
+
+    if provider.slug.blank?
+      Rails.logger.error("[OnboardingService] Failed to build slug for provider #{provider.name}")
+      send_message("Lo siento, hubo un problema creando tu perfil. Por favor contacta a soporte.")
+      return
+    end
+
     provider.save!
 
     # Clean up Redis state — provider now exists in DB

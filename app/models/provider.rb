@@ -48,7 +48,7 @@ class Provider < ApplicationRecord
   # Builds the SEO-friendly slug from primary category, city, name, and short_uuid.
   # Format: "{primary_cat_plural}-en-{city}/{name}-{primary_cat}-{short_uuid}"
   def build_slug
-    primary_category = provider_categories.find_by(primary: true)
+    primary_category = provider_categories.detect(&:primary?)
     return unless primary_category
 
     category_plural = primary_category.slug.pluralize

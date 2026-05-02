@@ -64,7 +64,7 @@ RSpec.describe Provider, type: :model do
         primary_category = build_stubbed(:provider_category, provider: provider, primary: true, slug: "fontanero")
 
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug
@@ -82,7 +82,7 @@ RSpec.describe Provider, type: :model do
         primary_category = build_stubbed(:provider_category, provider: provider, primary: true)
 
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug
@@ -95,7 +95,7 @@ RSpec.describe Provider, type: :model do
         primary_category = build_stubbed(:provider_category, provider: provider, primary: true, slug: "electricista")
 
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug
@@ -110,7 +110,7 @@ RSpec.describe Provider, type: :model do
         primary_category = build_stubbed(:provider_category, provider: provider, primary: true, slug: "plomero")
 
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug
@@ -125,7 +125,7 @@ RSpec.describe Provider, type: :model do
         provider = build_stubbed(:provider)
 
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: nil)
+          instance_double("AssociationProxy", detect: nil)
         )
 
         slug = provider.build_slug
@@ -140,7 +140,7 @@ RSpec.describe Provider, type: :model do
         primary_category = build_stubbed(:provider_category, provider: provider, primary: true, slug: "plomero")
 
         allow(provider).to receive(:provider_categories).and_return(
-          instance_double("AssociationProxy", find_by: primary_category)
+          instance_double("AssociationProxy", detect: primary_category)
         )
 
         slug = provider.build_slug
