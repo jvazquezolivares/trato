@@ -1,0 +1,108 @@
+<%# Admin Finances — platform revenue and infrastructure costs %>
+<% content_for(:page_title, "Finanzas") %>
+
+<%# Summary cards %>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8 lg:mb-12">
+  <%# Platform income %>
+  <div class="bg-white p-5 lg:p-6 rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)]">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-green-600">trending_up</span>
+      </div>
+    </div>
+    <p class="text-slate-500 text-xs lg:text-sm font-medium mb-1">Ingresos plataforma este mes</p>
+    <h3 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">
+      <%= format_mxn(@summary[:platform_income]) %>
+    </h3>
+  </div>
+
+  <%# Active providers %>
+  <div class="bg-white p-5 lg:p-6 rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)]">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-10 h-10 bg-[#0F766E]/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-[#0F766E]">engineering</span>
+      </div>
+    </div>
+    <p class="text-slate-500 text-xs lg:text-sm font-medium mb-1">Proveedores activos</p>
+    <h3 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">
+      <%= @summary[:active_providers] %>
+    </h3>
+  </div>
+
+  <%# Total providers %>
+  <div class="bg-white p-5 lg:p-6 rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)]">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-amber-600">groups</span>
+      </div>
+    </div>
+    <p class="text-slate-500 text-xs lg:text-sm font-medium mb-1">Total proveedores</p>
+    <h3 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">
+      <%= @summary[:total_providers] %>
+    </h3>
+  </div>
+
+  <%# Infrastructure cost %>
+  <div class="bg-white p-5 lg:p-6 rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)]">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-red-500">cloud</span>
+      </div>
+      <span class="text-xs text-slate-400 font-medium">Meta + Claude + Railway</span>
+    </div>
+    <p class="text-slate-500 text-xs lg:text-sm font-medium mb-1">Costo infraestructura</p>
+    <h3 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">
+      <%= format_mxn(@summary[:estimated_infrastructure_cost]) %>
+    </h3>
+  </div>
+</div>
+
+<%# Providers financial table %>
+<div class="bg-white rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)] overflow-hidden">
+  <div class="p-4 lg:p-6 border-b border-slate-100">
+    <h2 class="text-lg font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">Resumen por proveedor</h2>
+    <p class="text-sm text-slate-500 mt-1">Ingresos y trabajos del mes actual</p>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-slate-100">
+          <th class="text-left px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Proveedor</th>
+          <th class="text-left px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ingresos este mes</th>
+          <th class="text-left px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Trabajos este mes</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        <% @providers_financial.each do |item| %>
+          <tr class="hover:bg-[#F9F9FF] transition-colors">
+            <td class="px-4 lg:px-6 py-4">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-[#0F766E]/10 flex items-center justify-center shrink-0">
+                  <span class="text-sm font-bold text-[#0F766E]"><%= item[:provider].name&.first&.upcase %></span>
+                </div>
+                <div>
+                  <p class="font-medium text-[#111C2D] text-sm"><%= item[:provider].name %></p>
+                  <p class="text-xs text-slate-400"><%= item[:provider].city %></p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-sm font-semibold text-green-600">
+              <%= format_mxn(item[:income_this_month]) %>
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-sm text-[#111C2D]">
+              <%= item[:jobs_this_month] %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @providers_financial.empty? %>
+    <div class="text-center py-12">
+      <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">payments</span>
+      <p class="text-sm text-slate-400">Sin datos financieros disponibles</p>
+    </div>
+  <% end %>
+</div>

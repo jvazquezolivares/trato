@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <title><%= content_for(:title) || "Admin — Trato" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <link rel="icon" href="/icon.png" type="image/png">
+
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="bg-[#F9F9FF] text-[#111C2D] antialiased font-[Manrope]">
+    <% if session[:admin_authenticated] %>
+      <div class="flex min-h-screen">
+        <%# Sidebar navigation — dark charcoal per Stitch design %>
+        <aside class="hidden lg:flex lg:w-64 flex-col fixed inset-y-0 left-0 bg-slate-900 text-white z-50 shadow-2xl">
+          <div class="text-xl font-black text-white px-6 py-8 tracking-tight font-['Plus_Jakarta_Sans']">
+            Trato
+          </div>
+
+          <nav class="flex-1 px-2 space-y-1">
+            <%= admin_nav_link("Dashboard", "dashboard", admin_path) %>
+            <%= admin_nav_link("Proveedores", "engineering", admin_providers_path) %>
+            <%= admin_nav_link("Conversaciones", "chat", admin_conversations_path) %>
+            <%= admin_nav_link("Finanzas", "payments", admin_finances_path) %>
+          </nav>
+
+          <div class="px-4 py-6 border-t border-slate-800/50">
+            <div class="flex items-center gap-3 px-2 mb-4">
+              <div class="w-10 h-10 rounded-full bg-teal-600/20 flex items-center justify-center">
+                <span class="material-symbols-outlined text-teal-400 text-xl">admin_panel_settings</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-bold text-white leading-tight">Admin Trato</span>
+                <span class="text-xs text-slate-500">Panel de Control</span>
+              </div>
+            </div>
+            <%= link_to admin_logout_path, class: "w-full bg-slate-800 hover:bg-slate-700 text-slate-400 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 transition-all text-sm" do %>
+              <span class="material-symbols-outlined text-sm">logout</span>
+              Cerrar sesión
+            <% end %>
+          </div>
+        </aside>
+
+        <%# Mobile sidebar toggle %>
+        <div class="lg:hidden fixed top-0 left-0 right-0 z-40 bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+          <span class="text-lg font-black tracking-tight font-['Plus_Jakarta_Sans']">Trato Admin</span>
+          <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="p-2">
+            <span class="material-symbols-outlined">menu</span>
+          </button>
+        </div>
+
+        <%# Mobile menu dropdown %>
+        <div id="mobile-menu" class="hidden lg:hidden fixed inset-0 z-50 bg-slate-900/95 pt-16">
+          <nav class="px-4 space-y-2">
+            <%= admin_nav_link("Dashboard", "dashboard", admin_path) %>
+            <%= admin_nav_link("Proveedores", "engineering", admin_providers_path) %>
+            <%= admin_nav_link("Conversaciones", "chat", admin_conversations_path) %>
+            <%= admin_nav_link("Finanzas", "payments", admin_finances_path) %>
+            <div class="pt-4 border-t border-slate-800">
+              <%= link_to admin_logout_path, class: "text-slate-400 hover:text-white flex items-center gap-3 px-4 py-3 rounded-xl" do %>
+                <span class="material-symbols-outlined">logout</span>
+                <span>Cerrar sesión</span>
+              <% end %>
+            </div>
+          </nav>
+        </div>
+
+        <%# Main content area %>
+        <main class="flex-1 lg:ml-64 min-h-screen pt-14 lg:pt-0">
+          <%# Top header %>
+          <header class="h-20 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 bg-[#F9F9FF]/80 backdrop-blur-md">
+            <h1 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] tracking-tight font-['Plus_Jakarta_Sans']">
+              <%= content_for(:page_title) || "Panel Principal" %>
+            </h1>
+          </header>
+
+          <%# Flash messages %>
+          <% if flash[:notice] %>
+            <div class="mx-4 lg:mx-8 mb-4 p-4 bg-teal-50 border border-teal-200 text-teal-800 rounded-xl text-sm">
+              <%= flash[:notice] %>
+            </div>
+          <% end %>
+          <% if flash[:alert] %>
+            <div class="mx-4 lg:mx-8 mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-sm">
+              <%= flash[:alert] %>
+            </div>
+          <% end %>
+
+          <div class="px-4 lg:px-8 pb-12">
+            <%= yield %>
+          </div>
+        </main>
+      </div>
+    <% else %>
+      <%# Login/verify pages — no sidebar %>
+      <%= yield %>
+    <% end %>
+  </body>
+</html>

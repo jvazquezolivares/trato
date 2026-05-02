@@ -1,0 +1,92 @@
+<%# Admin Conversations — filter bar + table with stage badges %>
+<% content_for(:page_title, "Conversaciones") %>
+
+<%# Filters %>
+<div class="bg-white rounded-xl p-4 lg:p-6 shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)] mb-6">
+  <%= form_with url: admin_conversations_path, method: :get, local: true, class: "flex flex-col lg:flex-row gap-3 lg:gap-4" do %>
+    <%# Provider filter %>
+    <select name="provider_id"
+            class="px-3 py-2.5 bg-[#F0F3FF] border-none rounded-xl text-sm focus:ring-2 focus:ring-[#0F766E]/20 flex-1 lg:flex-none lg:w-48">
+      <option value="">Todos los proveedores</option>
+      <% @providers_for_filter.each do |name, id| %>
+        <option value="<%= id %>" <%= "selected" if params[:provider_id].to_s == id.to_s %>><%= name %></option>
+      <% end %>
+    </select>
+
+    <%# Stage filter %>
+    <select name="stage"
+            class="px-3 py-2.5 bg-[#F0F3FF] border-none rounded-xl text-sm focus:ring-2 focus:ring-[#0F766E]/20">
+      <option value="">Todos los estados</option>
+      <% @stages.each do |stage| %>
+        <option value="<%= stage %>" <%= "selected" if params[:stage] == stage %>><%= stage&.humanize %></option>
+      <% end %>
+    </select>
+
+    <%# Date range %>
+    <input type="date" name="date_from" value="<%= params[:date_from] %>"
+           class="px-3 py-2.5 bg-[#F0F3FF] border-none rounded-xl text-sm focus:ring-2 focus:ring-[#0F766E]/20"
+           placeholder="Desde">
+    <input type="date" name="date_to" value="<%= params[:date_to] %>"
+           class="px-3 py-2.5 bg-[#F0F3FF] border-none rounded-xl text-sm focus:ring-2 focus:ring-[#0F766E]/20"
+           placeholder="Hasta">
+
+    <button type="submit"
+            class="px-4 py-2.5 bg-[#0F766E] text-white rounded-xl text-sm font-semibold hover:bg-[#0D6B64] transition-all">
+      Filtrar
+    </button>
+  <% end %>
+</div>
+
+<%# Conversations table %>
+<div class="bg-white rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)] overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-slate-100">
+          <th class="text-left px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Proveedor</th>
+          <th class="text-left px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+          <th class="text-left px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Último mensaje</th>
+          <th class="text-left px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+          <th class="text-left px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Actividad</th>
+          <th class="text-right px-4 lg:px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ver</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        <% @conversations.each do |conv| %>
+          <tr class="hover:bg-[#F9F9FF] transition-colors">
+            <td class="px-4 lg:px-6 py-4">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-[#111C2D]"><%= conv.provider&.name %></span>
+              </div>
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-sm text-slate-600">
+              <%= mask_phone(conv.phone) %>
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-sm text-slate-500 hidden md:table-cell">
+              <span class="truncate block max-w-[200px]"><%= conv.messages.last&.body&.truncate(50) || "—" %></span>
+            </td>
+            <td class="px-4 lg:px-6 py-4">
+              <%= stage_badge(conv.stage) %>
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-xs text-slate-400 hidden lg:table-cell">
+              <%= time_ago_spanish(conv.last_message_at) %>
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-right">
+              <%= link_to admin_conversation_path(conv),
+                    class: "inline-flex items-center px-3 py-1.5 text-xs font-semibold text-[#0F766E] border border-[#0F766E]/30 rounded-lg hover:bg-[#0F766E]/5 transition-all" do %>
+                Ver historial
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @conversations.empty? %>
+    <div class="text-center py-12">
+      <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">chat_bubble_outline</span>
+      <p class="text-sm text-slate-400">No se encontraron conversaciones</p>
+    </div>
+  <% end %>
+</div>

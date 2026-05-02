@@ -1,0 +1,128 @@
+<%# Admin Dashboard — metric cards, recent activity, provider status breakdown %>
+<% content_for(:page_title, "Panel Principal") %>
+
+<%# Metric cards — 4-column bento grid per Stitch design %>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8 lg:mb-12">
+  <%# Active providers %>
+  <div class="bg-white p-5 lg:p-6 rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)] hover:shadow-lg transition-all">
+    <div class="flex items-center justify-between mb-3 lg:mb-4">
+      <div class="w-10 h-10 lg:w-12 lg:h-12 bg-[#0F766E]/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-[#0F766E]">engineering</span>
+      </div>
+    </div>
+    <p class="text-slate-500 text-xs lg:text-sm font-medium mb-1">Proveedores activos</p>
+    <h3 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">
+      <%= number_with_delimiter(@stats[:active_providers]) %>
+    </h3>
+  </div>
+
+  <%# Conversations today %>
+  <div class="bg-white p-5 lg:p-6 rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)] hover:shadow-lg transition-all">
+    <div class="flex items-center justify-between mb-3 lg:mb-4">
+      <div class="w-10 h-10 lg:w-12 lg:h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-amber-600">forum</span>
+      </div>
+    </div>
+    <p class="text-slate-500 text-xs lg:text-sm font-medium mb-1">Conversaciones hoy</p>
+    <h3 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">
+      <%= number_with_delimiter(@stats[:conversations_today]) %>
+    </h3>
+  </div>
+
+  <%# Jobs this month %>
+  <div class="bg-white p-5 lg:p-6 rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)] hover:shadow-lg transition-all">
+    <div class="flex items-center justify-between mb-3 lg:mb-4">
+      <div class="w-10 h-10 lg:w-12 lg:h-12 bg-green-500/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-green-600">assignment_turned_in</span>
+      </div>
+    </div>
+    <p class="text-slate-500 text-xs lg:text-sm font-medium mb-1">Trabajos este mes</p>
+    <h3 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">
+      <%= number_with_delimiter(@stats[:jobs_this_month]) %>
+    </h3>
+  </div>
+
+  <%# Estimated monthly cost %>
+  <div class="bg-white p-5 lg:p-6 rounded-xl shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)] hover:shadow-lg transition-all">
+    <div class="flex items-center justify-between mb-3 lg:mb-4">
+      <div class="w-10 h-10 lg:w-12 lg:h-12 bg-[#0F766E]/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-[#0F766E]">account_balance_wallet</span>
+      </div>
+      <span class="text-[#0F766E] text-xs font-bold px-2 py-1 bg-[#0F766E]/10 rounded-full">MXN</span>
+    </div>
+    <p class="text-slate-500 text-xs lg:text-sm font-medium mb-1">Costo estimado del mes</p>
+    <h3 class="text-xl lg:text-2xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">
+      <%= format_mxn(@stats[:estimated_monthly_cost]) %>
+    </h3>
+  </div>
+</div>
+
+<%# Analytics grid — activity feed + provider status %>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+  <%# Recent activity feed %>
+  <div class="lg:col-span-2 bg-white rounded-xl p-6 lg:p-8 shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)]">
+    <div class="flex items-center justify-between mb-6 lg:mb-8">
+      <h2 class="text-lg lg:text-xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']">Actividad Reciente</h2>
+    </div>
+
+    <% if @recent_activity.any? %>
+      <div class="space-y-4 lg:space-y-6">
+        <% @recent_activity.each do |activity| %>
+          <div class="flex gap-3 lg:gap-4 items-start">
+            <div class="mt-1 w-9 h-9 lg:w-10 lg:h-10 rounded-full bg-[#F0F3FF] flex items-center justify-center shrink-0 border border-slate-200/50">
+              <span class="material-symbols-outlined <%= activity[:color] %> text-lg lg:text-xl"><%= activity[:icon] %></span>
+            </div>
+            <div class="flex-1 pb-4 lg:pb-6 border-b border-slate-100 last:border-0">
+              <div class="flex justify-between items-start mb-1">
+                <h4 class="font-bold text-[#111C2D] text-sm"><%= activity[:title] %></h4>
+                <span class="text-xs text-slate-400 whitespace-nowrap ml-2"><%= time_ago_spanish(activity[:timestamp]) %></span>
+              </div>
+              <p class="text-xs lg:text-sm text-slate-500 leading-relaxed"><%= activity[:description] %></p>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="text-center py-12">
+        <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">inbox</span>
+        <p class="text-sm text-slate-400">Sin actividad reciente</p>
+      </div>
+    <% end %>
+  </div>
+
+  <%# Provider status breakdown %>
+  <div class="bg-white rounded-xl p-6 lg:p-8 shadow-[0_32px_64px_-15px_rgba(17,28,45,0.06)]">
+    <h2 class="text-lg lg:text-xl font-extrabold text-[#111C2D] mb-6 lg:mb-8 font-['Plus_Jakarta_Sans']">Estatus de Proveedores</h2>
+
+    <%# Simple visual representation %>
+    <div class="flex flex-col items-center mb-6">
+      <div class="relative w-36 h-36 lg:w-48 lg:h-48 mb-6">
+        <%# Donut chart approximation with CSS %>
+        <div class="w-full h-full rounded-full border-[16px] lg:border-[20px] border-[#0F766E]"
+             style="background: conic-gradient(#0F766E 0% <%= @provider_breakdown[:active_percentage] %>%, #e2e8f0 <%= @provider_breakdown[:active_percentage] %>% 100%); border-color: transparent;">
+        </div>
+        <div class="absolute inset-3 lg:inset-4 bg-white rounded-full flex flex-col items-center justify-center">
+          <span class="text-2xl lg:text-3xl font-extrabold text-[#111C2D] font-['Plus_Jakarta_Sans']"><%= @provider_breakdown[:total] %></span>
+          <span class="text-xs text-slate-400 font-medium">Total</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 lg:gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-[#0F766E]"></div>
+        <div class="flex flex-col">
+          <span class="text-xs text-slate-400">Activos</span>
+          <span class="text-sm font-bold"><%= @provider_breakdown[:active] %> (<%= @provider_breakdown[:active_percentage] %>%)</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-slate-200"></div>
+        <div class="flex flex-col">
+          <span class="text-xs text-slate-400">Inactivos</span>
+          <span class="text-sm font-bold"><%= @provider_breakdown[:inactive] %> (<%= @provider_breakdown[:inactive_percentage] %>%)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
