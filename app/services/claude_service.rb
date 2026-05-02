@@ -42,6 +42,7 @@ class ClaudeService
     handle_api_error(model, system_prompt, user_message, context, e)
   rescue StandardError => e
     Rails.logger.error("[ClaudeService] Unexpected error: #{e.class} — #{e.message}")
+    Rails.logger.error("[ClaudeService] Backtrace: #{e.backtrace.first(5).join("\n")}")
     SAFE_FALLBACK.dup
   end
 
@@ -50,12 +51,24 @@ class ClaudeService
   def self.request_claude(model, system_prompt, user_message, context)
     messages = build_messages(user_message, context)
 
-    Anthropic.messages.create(
+    Rails.logger.info("[ClaudeService] Calling Claude API with model: #{MODELS.fetch(model)}")
+
+    response = Anthropic.messages.create(
       model: MODELS.fetch(model),
       max_tokens: 1024,
       system: system_prompt,
       messages: messages
     )
+
+    if response.nil?
+      Rails.logger.error("[ClaudeService] Anthropic API returned nil response")
+    end
+
+    response
+  rescue StandardError => e
+    Rails.logger.error("[ClaudeService] Error in request_claude: #{e.class} - #{e.message}")
+    Rails.logger.error("[ClaudeService] Backtrace: #{e.backtrace.first(3).join("\n")}")
+    raise
   end
 
   def self.build_messages(user_message, context)
@@ -91,13 +104,25 @@ class ClaudeService
   end
 
   def self.extract_text(api_response)
-    content = api_response.dig("content", 0, "text") ||
-              api_response.dig(:content, 0, :text)
+    # Handle nil response
+    if api_response.nil?
+      Rails.logger.error("[ClaudeService] API response is nil")
+      return nil
+    end
+
+    # The anthropic-rb gem returns a Response object with a body field
+    response_body = api_response.respond_to?(:body) ? api_response.body : api_response
+
+    content = response_body.dig(:content, 0, :text) ||
+              response_body.dig("content", 0, "text")
 
     return content if content
 
+    # Log the unexpected response structure
+    Rails.logger.warn("[ClaudeService] Unexpected response structure: #{response_body.inspect.truncate(500)}")
+
     # Some gem versions return the response differently
-    api_response.to_s
+    response_body.to_s
   end
 
   def self.normalize_response(parsed)
