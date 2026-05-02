@@ -1,0 +1,104 @@
+<%# Tab 4: Assistant config — read-only: number, link, QR, copy auto-reply message %>
+<%# Locals: panel (ProviderPanelService) %>
+<%# Design reference: Stitch "Trato - Panel (Mi Asistente) v2" %>
+<% provider = panel.provider %>
+<% config = panel.assistant_config %>
+
+<div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm">
+  <%# Info Box %>
+  <div class="bg-[#0F766E]/5 border border-[#0F766E]/10 rounded-2xl p-5 mb-8 flex gap-4 items-start">
+    <span class="material-symbols-outlined text-[#0F766E] mt-1">smart_toy</span>
+    <p class="text-[#0F766E] font-medium leading-relaxed text-sm">
+      Esta es la información de tu asistente inteligente. Comparte el link o número con tus clientes para que puedan agendar servicios incluso cuando estés ocupado.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
+    <%# Left: Links & Numbers %>
+    <div class="space-y-6">
+      <%# WhatsApp Number %>
+      <div>
+        <label class="block text-sm font-bold text-[#6E7977] mb-2 ml-1">Número del asistente</label>
+        <div class="flex gap-2">
+          <div class="flex-1 bg-[#F0F3FF] px-4 py-3 rounded-xl text-[#1E293B] font-mono text-sm flex items-center border border-gray-100">
+            <%= config[:formatted_number] %>
+          </div>
+          <button class="bg-[#DEE8FF] hover:bg-[#D8E3FB] text-[#1E293B] font-bold px-4 py-3 rounded-xl transition-all flex items-center gap-2 text-sm"
+                  data-controller="clipboard"
+                  data-clipboard-text-value="<%= config[:whatsapp_number] %>"
+                  data-action="click->clipboard#copy"
+                  data-clipboard-target="button">
+            <span class="material-symbols-outlined text-sm">content_copy</span>
+            Copiar
+          </button>
+        </div>
+      </div>
+
+      <%# Assistant Link %>
+      <div>
+        <label class="block text-sm font-bold text-[#6E7977] mb-2 ml-1">Tu link de asistente</label>
+        <div class="flex gap-2">
+          <div class="flex-1 bg-[#F0F3FF] px-4 py-3 rounded-xl text-[#1E293B] font-mono text-xs flex items-center border border-gray-100 truncate">
+            <%= config[:assistant_link] %>
+          </div>
+          <button class="bg-[#DEE8FF] hover:bg-[#D8E3FB] text-[#1E293B] font-bold px-4 py-3 rounded-xl transition-all flex items-center gap-2 text-sm shrink-0"
+                  data-controller="clipboard"
+                  data-clipboard-text-value="<%= config[:assistant_link] %>"
+                  data-action="click->clipboard#copy"
+                  data-clipboard-target="button">
+            <span class="material-symbols-outlined text-sm">content_copy</span>
+            Copiar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <%# Right: QR Code %>
+    <div class="flex flex-col items-center justify-center p-6 bg-[#F0F3FF] rounded-2xl border border-gray-100 border-dashed">
+      <div class="bg-white p-4 rounded-2xl shadow-sm mb-4">
+        <img src="https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=<%= ERB::Util.url_encode(config[:assistant_link]) %>&choe=UTF-8"
+             alt="QR code del asistente"
+             class="w-32 h-32 mx-auto"
+             loading="lazy">
+      </div>
+      <p class="text-sm font-bold text-[#1E293B] mb-1">Comparte este QR con tus clientes</p>
+    </div>
+  </div>
+
+  <%# Decorative Separator %>
+  <div class="my-10 md:my-12 h-px bg-gray-200 relative">
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-4">
+      <span class="material-symbols-outlined text-[#BDC9C6]">forum</span>
+    </div>
+  </div>
+
+  <%# Suggested Auto-Reply Message %>
+  <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg md:text-xl font-bold text-[#1E293B]">Mensaje automático sugerido</h3>
+      <span class="text-xs bg-[#FEA619]/20 text-[#684000] px-2 py-1 rounded-full font-bold uppercase tracking-wider">
+        Ahorra tiempo
+      </span>
+    </div>
+
+    <p class="text-[#6E7977] text-sm">
+      Copia este mensaje y pégalo en tu WhatsApp Business como respuesta automática cuando no puedas contestar:
+    </p>
+
+    <div class="relative">
+      <div class="absolute -top-3 left-6 bg-white px-2 text-xs font-bold text-[#0F766E]">Previsualización de respuesta</div>
+      <div class="bg-[#F0F3FF] p-6 rounded-2xl border border-gray-200 italic text-[#6E7977] leading-relaxed text-sm whitespace-pre-line">
+<%= config[:auto_reply_message] %>
+      </div>
+    </div>
+
+    <button class="w-full bg-gradient-to-r from-[#005C55] to-[#0F766E] text-white py-4 rounded-xl font-bold text-base md:text-lg shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+            data-controller="clipboard"
+            data-clipboard-text-value="<%= config[:auto_reply_message] %>"
+            data-action="click->clipboard#copy"
+            data-clipboard-target="button">
+      <span class="material-symbols-outlined">content_copy</span>
+      Copiar mensaje
+    </button>
+  </div>
+</div>

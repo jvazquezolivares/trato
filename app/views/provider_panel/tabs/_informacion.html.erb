@@ -1,0 +1,132 @@
+<%# Tab 1: Basic info — editable form %>
+<%# Locals: panel (ProviderPanelService) %>
+<% provider = panel.provider %>
+
+<div class="bg-[#F0F3FF] p-4 md:p-8 rounded-xl space-y-8">
+  <%= form_with(model: provider, url: mi_perfil_path, method: :patch, local: true, class: "space-y-8") do |f| %>
+
+    <%# Profile Photo %>
+    <div class="flex flex-col md:flex-row md:items-center gap-6">
+      <div class="relative group shrink-0">
+        <% if panel.profile_photo %>
+          <img src="<%= panel.profile_photo.display_url %>"
+               alt="Foto de perfil"
+               class="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover shadow-md border-4 border-white">
+        <% else %>
+          <div class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-[#E2E8F0] flex items-center justify-center border-4 border-white shadow-md">
+            <span class="material-symbols-outlined text-[#94A3B8] text-4xl">person</span>
+          </div>
+        <% end %>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-[#1E293B] mb-1">Foto de perfil</h3>
+        <p class="text-[#64748B] text-sm max-w-xs">
+          Usa una foto clara y profesional para generar más confianza con tus clientes.
+        </p>
+      </div>
+    </div>
+
+    <%# Form Fields %>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <%# Name %>
+      <div class="space-y-2">
+        <label for="provider_name" class="text-xs font-bold text-[#64748B] uppercase tracking-wider">
+          Nombre completo
+        </label>
+        <%= f.text_field :name,
+              class: "w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-[#1E293B] focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-none transition-all text-sm",
+              id: "provider_name" %>
+      </div>
+
+      <%# Categories %>
+      <div class="space-y-2">
+        <label class="text-xs font-bold text-[#64748B] uppercase tracking-wider">
+          Categorías
+        </label>
+        <div class="flex flex-wrap gap-2 p-2 bg-white border border-gray-200 rounded-xl min-h-[48px]">
+          <% panel.categories.each do |category| %>
+            <span class="px-3 py-1 bg-[#0F766E] text-white text-xs font-bold rounded-full flex items-center gap-1">
+              <%= category.name %>
+            </span>
+          <% end %>
+          <% if panel.categories.empty? %>
+            <span class="text-[#94A3B8] text-xs px-2 py-1">Sin categorías</span>
+          <% end %>
+        </div>
+      </div>
+
+      <%# City %>
+      <div class="space-y-2">
+        <label for="provider_city" class="text-xs font-bold text-[#64748B] uppercase tracking-wider">
+          Ciudad
+        </label>
+        <%= f.text_field :city,
+              class: "w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-[#1E293B] focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-none transition-all text-sm",
+              id: "provider_city" %>
+      </div>
+
+      <%# Service Area / Zones %>
+      <div class="space-y-2">
+        <label for="provider_service_area" class="text-xs font-bold text-[#64748B] uppercase tracking-wider">
+          Zonas que atiendes
+        </label>
+        <%= f.text_field :service_area,
+              class: "w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-[#1E293B] focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-none transition-all text-sm",
+              placeholder: "Boca del Río, Centro, Mocambo",
+              id: "provider_service_area" %>
+      </div>
+
+      <%# Bio %>
+      <div class="space-y-2 md:col-span-2">
+        <label for="provider_bio" class="text-xs font-bold text-[#64748B] uppercase tracking-wider">
+          Sobre mí / Bio
+        </label>
+        <%= f.text_area :bio,
+              rows: 4,
+              maxlength: 300,
+              class: "w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-[#1E293B] focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-none transition-all text-sm resize-none",
+              id: "provider_bio" %>
+        <p class="text-[#94A3B8] text-xs text-right">
+          <%= provider.bio&.length || 0 %> / 300 caracteres
+        </p>
+      </div>
+
+      <%# Base Price %>
+      <div class="space-y-2">
+        <label for="provider_base_price" class="text-xs font-bold text-[#64748B] uppercase tracking-wider">
+          Precio de visita (Base)
+        </label>
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] font-bold text-sm">$</span>
+          <%= f.number_field :base_price,
+                class: "w-full bg-white border border-gray-200 rounded-xl pl-8 pr-16 py-3 text-[#1E293B] focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-none transition-all text-sm",
+                step: 1,
+                min: 0,
+                id: "provider_base_price" %>
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] text-xs font-medium">MXN</span>
+        </div>
+      </div>
+
+      <%# Email %>
+      <div class="space-y-2">
+        <label for="provider_email" class="text-xs font-bold text-[#64748B] uppercase tracking-wider">
+          Correo electrónico
+          <span class="text-[#94A3B8] font-normal normal-case">(Opcional)</span>
+        </label>
+        <%= f.email_field :email,
+              class: "w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-[#1E293B] focus:ring-2 focus:ring-[#0F766E] focus:border-transparent outline-none transition-all text-sm",
+              placeholder: "tu@email.com",
+              id: "provider_email" %>
+      </div>
+    </div>
+
+    <%# Save Button %>
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4">
+      <p class="text-[#94A3B8] text-xs italic">
+        Los cambios se guardarán en tu perfil público automáticamente.
+      </p>
+      <%= f.submit "Guardar cambios",
+            class: "w-full md:w-auto px-8 py-3 bg-[#0F766E] hover:bg-[#0D6B64] text-white font-bold rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer text-sm" %>
+    </div>
+  <% end %>
+</div>

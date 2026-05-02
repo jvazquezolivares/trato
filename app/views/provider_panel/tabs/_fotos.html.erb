@@ -1,0 +1,105 @@
+<%# Tab 2: Photos — upload, delete, reorder, max 10 %>
+<%# Locals: panel (ProviderPanelService) %>
+<%# Design reference: Stitch "Trato - Panel (Fotos)" %>
+<% provider = panel.provider %>
+
+<div class="bg-white rounded-xl p-4 md:p-8 shadow-sm">
+  <div class="max-w-4xl">
+    <%# Upload Area %>
+    <% unless panel.photo_limit_reached? %>
+      <div class="mb-10">
+        <%= form_with url: mi_perfil_photos_path, method: :post, multipart: true, local: true,
+                      data: { controller: "photo-upload" } do %>
+          <div class="border-2 border-dashed border-[#BDC9C6] rounded-xl p-8 md:p-12 text-center bg-[#F0F3FF]/50 hover:bg-[#F0F3FF] transition-all cursor-pointer group"
+               data-action="click->photo-upload#trigger">
+            <div class="mb-4">
+              <span class="material-symbols-outlined text-5xl text-[#BDC9C6] group-hover:text-[#0F766E] transition-colors">cloud_upload</span>
+            </div>
+            <h3 class="text-lg md:text-xl font-bold text-[#1E293B] mb-2">
+              Arrastra tus fotos aquí o toca para seleccionar
+            </h3>
+            <p class="text-[#6E7977]">
+              Formatos: JPG, PNG · Máx 10 MB por foto
+            </p>
+            <input type="file"
+                   name="photo"
+                   accept="image/jpeg,image/png,image/webp"
+                   class="hidden"
+                   data-photo-upload-target="input"
+                   data-action="change->photo-upload#preview">
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%# Gallery Section Header %>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
+      <div>
+        <h2 class="text-xl md:text-2xl font-extrabold text-[#1E293B]">Galería de trabajos</h2>
+        <p class="text-[#6E7977] text-sm">Muestra la calidad de tus servicios finalizados.</p>
+      </div>
+      <span class="bg-[#0F766E] text-white px-4 py-1 rounded-full text-sm font-bold">
+        <%= panel.work_photos.size %> de <%= ProviderPanelService::MAX_PHOTOS %> fotos
+      </span>
+    </div>
+
+    <%# Photo Grid %>
+    <% if panel.work_photos.any? %>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <% panel.work_photos.each do |photo| %>
+          <div class="relative group aspect-square rounded-xl overflow-hidden shadow-sm">
+            <% if photo.file.attached? %>
+              <%= image_tag photo.file, alt: photo.caption || "Foto de trabajo",
+                    class: "w-full h-full object-cover" %>
+            <% elsif photo.url.present? %>
+              <img src="<%= photo.url %>"
+                   alt="<%= photo.caption || 'Foto de trabajo' %>"
+                   class="w-full h-full object-cover">
+            <% else %>
+              <div class="w-full h-full bg-[#F1F5F9] flex items-center justify-center">
+                <span class="material-symbols-outlined text-[#94A3B8] text-4xl">image</span>
+              </div>
+            <% end %>
+
+            <%# Overlay with delete and drag buttons %>
+            <div class="absolute inset-0 bg-[#111C2D]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-3">
+              <div class="flex flex-col gap-2">
+                <%= button_to mi_perfil_photo_path(id: photo.id),
+                      method: :delete,
+                      class: "w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105",
+                      data: { turbo_confirm: "¿Eliminar esta foto?" } do %>
+                  <span class="material-symbols-outlined text-sm">close</span>
+                <% end %>
+                <div class="w-8 h-8 bg-white/90 text-[#1E293B] rounded-full flex items-center justify-center cursor-move shadow-lg">
+                  <span class="material-symbols-outlined text-sm">drag_indicator</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <%# Footer Action %>
+      <% unless panel.photo_limit_reached? %>
+        <div class="flex justify-end">
+          <label class="px-8 py-3 rounded-xl border-2 border-[#0F766E] text-[#0F766E] font-bold hover:bg-[#0F766E]/5 transition-all flex items-center gap-2 cursor-pointer">
+            <span class="material-symbols-outlined">add_photo_alternate</span>
+            Subir fotos
+            <input type="file"
+                   name="photo"
+                   accept="image/jpeg,image/png,image/webp"
+                   class="hidden"
+                   form="photo-upload-form"
+                   data-action="change->photo-upload#preview">
+          </label>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center py-16">
+        <span class="material-symbols-outlined text-[#CBD5E1] text-5xl mb-3 block">photo_library</span>
+        <p class="text-[#1E293B] text-sm font-bold mb-1">Aún no tienes fotos de trabajo</p>
+        <p class="text-[#6E7977] text-xs">Sube fotos de tus trabajos para que tus clientes vean tu calidad.</p>
+      </div>
+    <% end %>
+  </div>
+</div>

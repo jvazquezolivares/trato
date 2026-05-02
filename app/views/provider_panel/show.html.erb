@@ -1,13 +1,93 @@
-<%# Placeholder — full implementation in task 24 (Provider Panel with 4 tabs) %>
 <% content_for(:title) { "Mi perfil — Trato" } %>
 
 <div class="min-h-screen bg-[#F8FAFC]">
-  <div class="max-w-2xl mx-auto px-4 py-12">
-    <h1 class="text-2xl font-bold text-[#1E293B] font-[Plus_Jakarta_Sans]">
-      Mi perfil
-    </h1>
-    <p class="mt-2 text-[#64748B] text-sm">
-      Bienvenido, <%= @provider.name %>. Esta sección estará disponible pronto.
-    </p>
+  <div class="max-w-5xl mx-auto px-4 py-6 md:py-12">
+    <%# Header Section %>
+    <header class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-[#1E293B] font-[Plus_Jakarta_Sans] tracking-tight mb-2">
+          Mi perfil
+        </h1>
+        <a href="<%= provider_profile_path(category_city: @provider.slug&.split("/")&.first || "perfil", slug: @provider.slug&.split("/")&.last || @provider.short_uuid) %>"
+           class="text-[#0F766E] font-semibold flex items-center gap-1 hover:underline text-sm">
+          Ver mi perfil público
+          <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </a>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#0F766E] text-white">
+          <%= @panel.primary_category&.name || "Técnico" %>
+        </span>
+        <span class="text-[#64748B] text-sm font-medium"><%= @provider.name %></span>
+      </div>
+    </header>
+
+    <%# Metrics Row %>
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8 md:mb-12">
+      <%= render "provider_panel/metric_card",
+                 icon: "handyman",
+                 value: @panel.metrics[:jobs_this_month],
+                 label: "trabajos este mes",
+                 color: "#0F766E" %>
+      <%= render "provider_panel/metric_card",
+                 icon: "payments",
+                 value: number_to_currency(@panel.metrics[:income_this_month], unit: "$", precision: 0, delimiter: ","),
+                 label: "ganados este mes",
+                 color: "#F59E0B" %>
+      <%= render "provider_panel/metric_card",
+                 icon: "star",
+                 value: @panel.metrics[:average_rating] > 0 ? "#{@panel.metrics[:average_rating]} ★" : "—",
+                 label: "calificación",
+                 color: "#F59E0B",
+                 filled_icon: true %>
+      <%= render "provider_panel/metric_card",
+                 icon: "rate_review",
+                 value: @panel.metrics[:new_reviews],
+                 label: "reseñas nuevas",
+                 color: "#0F766E" %>
+    </section>
+
+    <% active_tab = params[:tab] || "informacion" %>
+
+    <%# Tabs Navigation %>
+    <nav class="flex overflow-x-auto no-scrollbar gap-4 md:gap-8 mb-8 border-b border-gray-200"
+         data-controller="tabs"
+         data-tabs-active-tab-value="<%= active_tab %>">
+      <%= render "provider_panel/tab_link", tab_name: "informacion", icon: "info", label: "Información", active_tab: active_tab %>
+      <%= render "provider_panel/tab_link", tab_name: "fotos", icon: "photo_library", label: "Fotos", active_tab: active_tab %>
+      <%= render "provider_panel/tab_link", tab_name: "redes", icon: "share", label: "Redes sociales", active_tab: active_tab %>
+      <%= render "provider_panel/tab_link", tab_name: "asistente", icon: "smart_toy", label: "Mi asistente", active_tab: active_tab %>
+    </nav>
+
+    <%# Flash Messages %>
+    <% if flash[:notice] %>
+      <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-medium">
+        <%= flash[:notice] %>
+      </div>
+    <% end %>
+    <% if flash[:alert] %>
+      <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm font-medium">
+        <%= flash[:alert] %>
+      </div>
+    <% end %>
+
+    <%# Tab Content %>
+    <turbo-frame id="panel-tab-content">
+      <% case active_tab %>
+      <% when "informacion" %>
+        <%= render "provider_panel/tabs/informacion", panel: @panel %>
+      <% when "fotos" %>
+        <%= render "provider_panel/tabs/fotos", panel: @panel %>
+      <% when "redes" %>
+        <%= render "provider_panel/tabs/redes", panel: @panel %>
+      <% when "asistente" %>
+        <%= render "provider_panel/tabs/asistente", panel: @panel %>
+      <% end %>
+    </turbo-frame>
   </div>
 </div>
+
+<style>
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>

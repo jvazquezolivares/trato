@@ -1,0 +1,11 @@
+<%# Tab navigation link for the provider panel %>
+<%# Locals: tab_name (String), icon (String), label (String), active_tab (String) %>
+<% is_active = active_tab == tab_name %>
+<a href="<%= mi_perfil_path(tab: tab_name) %>"
+   class="pb-3 flex items-center gap-2 whitespace-nowrap transition-colors
+          <%= is_active ? 'text-[#0F766E] font-bold border-b-2 border-[#0F766E]' : 'text-[#64748B] font-medium hover:text-[#0F766E]' %>"
+   data-tabs-target="tab"
+   data-tab-name="<%= tab_name %>">
+  <span class="material-symbols-outlined text-sm"><%= icon %></span>
+  <span class="text-sm"><%= label %></span>
+</a>

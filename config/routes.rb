@@ -28,6 +28,11 @@ Rails.application.routes.draw do
 
   # Provider panel — requires authenticated session
   get "/mi-perfil", to: "provider_panel#show", as: :mi_perfil
+  patch "/mi-perfil", to: "provider_panel#update"
+  get "/mi-perfil/tab/:tab_name", to: "provider_panel#tab", as: :mi_perfil_tab
+  post "/mi-perfil/photos", to: "provider_panel#upload_photo", as: :mi_perfil_photos
+  delete "/mi-perfil/photos/:id", to: "provider_panel#destroy_photo", as: :mi_perfil_photo
+  patch "/mi-perfil/photos/reorder", to: "provider_panel#reorder_photos", as: :mi_perfil_photos_reorder
 
   # Homepage
   root "home#index"
