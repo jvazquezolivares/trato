@@ -24,6 +24,14 @@ class ClientAssistantOrchestrator
     client = find_or_initialize_client
     conversation = find_or_create_conversation(client)
 
+    # Short-circuit: if the client is in a review collection flow,
+    # delegate directly to ReviewCollectionService (skip Claude).
+    return handle_review_collection(client, conversation) if review_collection_active?(conversation)
+
+    # Short-circuit: if the client sends a rating (1–5) and has a
+    # pending review job, start the review collection flow.
+    return start_review_collection(client, conversation) if review_rating_detected?(conversation)
+
     handle_pre_escalation(conversation)
 
     response = call_claude(conversation, client)
@@ -89,6 +97,36 @@ class ClientAssistantOrchestrator
     )
   end
 
+  # --- Review collection ---
+
+  def review_collection_active?(conversation)
+    Assistants::ReviewCollectionService.collecting_review?(conversation)
+  end
+
+  def review_rating_detected?(conversation)
+    Assistants::ReviewCollectionService.review_rating?(body: @body, conversation: conversation)
+  end
+
+  def handle_review_collection(client, conversation)
+    response = Assistants::ReviewCollectionService.call(
+      provider: @provider, client: client,
+      conversation: conversation, body: @body
+    )
+    send_reply(response)
+    persist(response, conversation)
+    response
+  end
+
+  def start_review_collection(client, conversation)
+    response = Assistants::ReviewCollectionService.call(
+      provider: @provider, client: client,
+      conversation: conversation, body: @body
+    )
+    send_reply(response)
+    persist(response, conversation)
+    response
+  end
+
   # --- Action dispatch ---
 
   def execute_action(response, client, conversation)
@@ -105,6 +143,11 @@ class ClientAssistantOrchestrator
       send_work_photos(action_data)
     when "send_review_summary"
       Assistants::ReviewSummaryService.call(provider: @provider, to: @from)
+    when "collect_review"
+      Assistants::ReviewCollectionService.call(
+        provider: @provider, client: client,
+        conversation: conversation, body: @body
+      )
     when "escalate"
       Assistants::EscalationDetector.escalate!(
         conversation: conversation, provider: @provider,
