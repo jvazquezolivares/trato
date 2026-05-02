@@ -20,6 +20,19 @@ module Assistants
 
     def process
       response = call_claude
+
+      # Handle nil response from ClaudeService
+      if response.nil?
+        Rails.logger.error("[ProviderSearchService] Received nil response from ClaudeService")
+        response = {
+          "message" => "Lo siento, tuve un problema. ¿Puedes repetir qué tipo de técnico buscas?",
+          "action" => "none",
+          "action_data" => {},
+          "new_stage" => nil,
+          "updated_context" => {}
+        }
+      end
+
       execute_search_action(response)
       send_reply(response)
 

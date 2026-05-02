@@ -256,7 +256,26 @@ class OnboardingService
       context: {}
     )
 
-    generated_bio = response["message"] || response["bio"] || response.values.first
+    # Handle nil response or missing message
+    if response.nil? || response["message"].blank?
+      Rails.logger.error("[OnboardingService] Failed to generate bio - nil or empty response")
+      send_message("Lo siento, tuve un problema generando tu descripción. Voy a intentar de nuevo...")
+      # Retry once
+      response = ClaudeService.call(
+        model: :haiku,  # Try with haiku as fallback
+        system_prompt: bio_system_prompt,
+        user_message: bio_user_message,
+        context: {}
+      )
+
+      if response.nil? || response["message"].blank?
+        Rails.logger.error("[OnboardingService] Failed to generate bio after retry")
+        send_message("Lo siento, tengo problemas técnicos. Por favor intenta de nuevo más tarde o escribe tu propia descripción.")
+        return
+      end
+    end
+
+    generated_bio = response["message"]
     data["generated_bio"] = generated_bio
     save_state
 

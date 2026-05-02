@@ -20,6 +20,19 @@ class ProviderAssistant
     conversation = find_or_create_conversation
     response = call_claude(conversation)
 
+    # Handle nil response from ClaudeService
+    if response.nil?
+      Rails.logger.error("[ProviderAssistant] Received nil response from ClaudeService")
+      response = {
+        "message" => "Lo siento, tuve un problema. ¿Puedes repetir eso?",
+        "action" => "none",
+        "action_data" => {},
+        "new_stage" => nil,
+        "updated_context" => {},
+        "should_save_message" => false
+      }
+    end
+
     # Financial queries use a two-step flow: Claude identifies the query,
     # the service computes real data, then Claude presents it conversationally.
     if financial_query?(response)

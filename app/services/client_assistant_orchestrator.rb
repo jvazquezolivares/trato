@@ -35,6 +35,20 @@ class ClientAssistantOrchestrator
     handle_pre_escalation(conversation)
 
     response = call_claude(conversation, client)
+
+    # Handle nil response from ClaudeService
+    if response.nil?
+      Rails.logger.error("[ClientAssistantOrchestrator] Received nil response from ClaudeService")
+      response = {
+        "message" => "Lo siento, tuve un problema. ¿Puedes repetir eso?",
+        "action" => "none",
+        "action_data" => {},
+        "new_stage" => nil,
+        "updated_context" => {},
+        "should_save_message" => false
+      }
+    end
+
     execute_action(response, client, conversation)
     send_reply(response)
     persist(response, conversation)

@@ -54,12 +54,24 @@ module Assistants
       description = @action_data["description"] || ""
       photo_url = @action_data["photo_url"]
 
-      ClaudeService.call(
+      response = ClaudeService.call(
         model: :sonnet,
         system_prompt: caption_system_prompt,
         user_message: build_caption_request(description, photo_url),
         context: {}
       )
+
+      # Handle nil response
+      if response.nil?
+        Rails.logger.error("[SocialMediaService] Received nil response from ClaudeService")
+        return {
+          "message" => "Lo siento, tuve un problema generando el texto. ¿Puedes intentar de nuevo?",
+          "action" => "none",
+          "action_data" => {}
+        }
+      end
+
+      response
     end
 
     # Publishes the approved caption to social media via SocialService.
