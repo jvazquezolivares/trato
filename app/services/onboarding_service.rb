@@ -279,6 +279,17 @@ class OnboardingService
         "collecting_profile_photo",
         message: "¡Perfecto! Ahora, ¿me puedes mandar una foto tuya para tu perfil? Es opcional, pero ayuda mucho a generar confianza. Si no quieres, escribe *no*."
       )
+    elsif @body&.downcase&.include?("no me diste") || @body&.downcase&.include?("no recibí")
+      # Provider says they didn't receive the bio - resend it
+      if data["generated_bio"].present?
+        send_message("Disculpa, aquí está tu descripción de nuevo:")
+        send_message(data["generated_bio"])
+        send_message("¿Te gusta esta descripción? Responde *sí* para aprobarla o dime qué le cambiarías.")
+      else
+        # Bio was never generated - regenerate it
+        send_message("Tienes razón, déjame generarla de nuevo...")
+        generate_bio
+      end
     else
       revision_count = data["bio_revision_count"].to_i + 1
       data["bio_revision_count"] = revision_count
@@ -304,7 +315,14 @@ class OnboardingService
       context: {}
     )
 
-    generated_bio = response["message"] || response["bio"] || response.values.first
+    # Handle nil response or missing message
+    if response.nil? || response["message"].blank?
+      Rails.logger.error("[OnboardingService] Failed to regenerate bio - nil or empty response")
+      send_message("Lo siento, tuve un problema generando la nueva descripción. ¿Puedes repetir qué cambios quieres?")
+      return
+    end
+
+    generated_bio = response["message"]
     data["generated_bio"] = generated_bio
     save_state
 
