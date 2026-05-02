@@ -14,7 +14,7 @@ class DirectoryService
 
   def initialize(category_city:, page: 1, filter: nil)
     @category_city = category_city
-    @page = [page.to_i, 1].max
+    @page = [ page.to_i, 1 ].max
     @filter = filter
   end
 
@@ -52,7 +52,7 @@ class DirectoryService
       .pluck(:id)
 
     @total_count = matching_ids.size
-    @total_pages = [(@total_count.to_f / PER_PAGE).ceil, 1].max
+    @total_pages = [ (@total_count.to_f / PER_PAGE).ceil, 1 ].max
 
     # Step 2: Apply filter and ordering to get the final ordered IDs
     ordered_ids = apply_filter_and_order(matching_ids)
@@ -65,7 +65,7 @@ class DirectoryService
 
     @providers = Provider
       .where(id: paginated_ids)
-      .includes(:provider_categories, :photos, :reviews, :jobs)
+      .includes(:provider_categories, :photos, :reviews)
       .order(Arel.sql("ARRAY_POSITION(ARRAY[#{paginated_ids.join(',')}], providers.id)"))
   end
 

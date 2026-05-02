@@ -21,7 +21,7 @@ RSpec.describe Assistants::ProviderPromptBuilder do
 
   before do
     allow(provider).to receive(:provider_categories).and_return(provider_categories_relation)
-    allow(provider_categories_relation).to receive(:pluck).with(:name).and_return(["Fontanero"])
+    allow(provider_categories_relation).to receive(:pluck).with(:name).and_return([ "Fontanero" ])
 
     # Stub clients chain
     clients_join = double("clients_join")
@@ -33,7 +33,7 @@ RSpec.describe Assistants::ProviderPromptBuilder do
     allow(clients_where).to receive(:where).and_return(clients_order)
     allow(clients_order).to receive(:order).and_return(clients_limit)
     allow(clients_limit).to receive(:limit).and_return(clients_limit)
-    allow(clients_limit).to receive(:pluck).and_return(["Martínez"])
+    allow(clients_limit).to receive(:pluck).and_return([ "Martínez" ])
 
     # Stub jobs chain
     jobs_includes = double("jobs_includes")
@@ -198,7 +198,7 @@ RSpec.describe Assistants::ProviderPromptBuilder do
         allow(tasks_pending).to receive(:order).and_return(tasks_ordered)
         allow(tasks_ordered).to receive(:limit).and_return(tasks_limited)
         allow(tasks_limited).to receive(:pluck).with(:description).and_return(
-          ["Llamar al señor Pérez", "Comprar cable calibre 12"]
+          [ "Llamar al señor Pérez", "Comprar cable calibre 12" ]
         )
       end
 

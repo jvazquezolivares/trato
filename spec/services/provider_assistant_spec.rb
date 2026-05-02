@@ -21,7 +21,7 @@ RSpec.describe ProviderAssistant do
     }
   end
 
-  let(:provider_categories_relation) { double("categories_relation", pluck: ["Fontanero"]) }
+  let(:provider_categories_relation) { double("categories_relation", pluck: [ "Fontanero" ]) }
   let(:clients_relation) { double("clients_relation") }
   let(:jobs_relation) { double("jobs_relation") }
 
@@ -45,7 +45,7 @@ RSpec.describe ProviderAssistant do
     allow(clients_where).to receive(:where).and_return(clients_order)
     allow(clients_order).to receive(:order).and_return(clients_limit)
     allow(clients_limit).to receive(:limit).and_return(clients_limit)
-    allow(clients_limit).to receive(:pluck).and_return(["Martínez"])
+    allow(clients_limit).to receive(:pluck).and_return([ "Martínez" ])
 
     # Stub jobs chain for recent_jobs_summary
     jobs_includes = double("jobs_includes")
@@ -622,7 +622,7 @@ RSpec.describe ProviderAssistant do
       instance_double(Message, direction: "inbound", body: "Terminé un trabajo", created_at: 1.hour.ago)
     end
 
-    let(:limited_messages) { [message_double] }
+    let(:limited_messages) { [ message_double ] }
 
     it "builds history from recent messages" do
       described_class.call(provider: provider, body: "Hola")
@@ -630,7 +630,7 @@ RSpec.describe ProviderAssistant do
       expect(ClaudeService).to have_received(:call).with(
         hash_including(
           context: hash_including(
-            "history" => [{ "role" => "user", "content" => "Terminé un trabajo" }]
+            "history" => [ { "role" => "user", "content" => "Terminé un trabajo" } ]
           )
         )
       )

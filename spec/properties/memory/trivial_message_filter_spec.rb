@@ -22,11 +22,11 @@ RSpec.describe MessagePersistenceFilter, "P8: trivial messages never persisted",
 
         # Apply random casing variations
         body = case rand(4)
-               when 0 then trivial_body
-               when 1 then trivial_body.upcase
-               when 2 then trivial_body.capitalize
-               else trivial_body
-               end
+        when 0 then trivial_body
+        when 1 then trivial_body.upcase
+        when 2 then trivial_body.capitalize
+        else trivial_body
+        end
 
         # Add random whitespace padding
         body = "  #{body}  " if rand(2).zero?
@@ -47,10 +47,10 @@ RSpec.describe MessagePersistenceFilter, "P8: trivial messages never persisted",
 
         # Optionally combine 1-3 emojis (still standalone emoji message)
         body = case rand(3)
-               when 0 then emoji
-               when 1 then "#{emoji}#{STANDALONE_EMOJIS.sample}"
-               else "#{emoji} #{STANDALONE_EMOJIS.sample} #{STANDALONE_EMOJIS.sample}"
-               end
+        when 0 then emoji
+        when 1 then "#{emoji}#{STANDALONE_EMOJIS.sample}"
+        else "#{emoji} #{STANDALONE_EMOJIS.sample} #{STANDALONE_EMOJIS.sample}"
+        end
 
         result = MessagePersistenceFilter.should_save?(body: body, intent: nil)
 
@@ -70,7 +70,7 @@ RSpec.describe MessagePersistenceFilter, "P8: trivial messages never persisted",
     end
 
     it "trivial_body? returns true for blank/nil bodies" do
-      [nil, "", "  "].each do |body|
+      [ nil, "", "  " ].each do |body|
         expect(MessagePersistenceFilter.trivial_body?(body)).to be(true),
           "Expected trivial_body? to be true for #{body.inspect}"
       end

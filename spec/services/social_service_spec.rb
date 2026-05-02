@@ -67,7 +67,7 @@ RSpec.describe SocialService do
       let(:page_accounts_response) do
         double("response",
           success?: true,
-          parsed_response: { "data" => [{ "id" => "page_123" }] })
+          parsed_response: { "data" => [ { "id" => "page_123" } ] })
       end
 
       let(:publish_response) do
@@ -78,7 +78,7 @@ RSpec.describe SocialService do
         stub_request(:get, %r{graph\.facebook\.com/v19\.0/me/accounts})
           .to_return(
             status: 200,
-            body: { "data" => [{ "id" => "page_123" }] }.to_json,
+            body: { "data" => [ { "id" => "page_123" } ] }.to_json,
             headers: { "Content-Type" => "application/json" }
           )
 
@@ -119,7 +119,7 @@ RSpec.describe SocialService do
         stub_request(:get, %r{graph\.facebook\.com/v19\.0/me/accounts})
           .to_return(
             status: 200,
-            body: { "data" => [{ "id" => "page_123" }] }.to_json,
+            body: { "data" => [ { "id" => "page_123" } ] }.to_json,
             headers: { "Content-Type" => "application/json" }
           )
 
@@ -166,7 +166,7 @@ RSpec.describe SocialService do
         stub_request(:get, %r{graph\.facebook\.com/v19\.0/me/accounts})
           .to_return(
             status: 200,
-            body: { "data" => [{ "id" => "page_123" }] }.to_json,
+            body: { "data" => [ { "id" => "page_123" } ] }.to_json,
             headers: { "Content-Type" => "application/json" }
           )
 

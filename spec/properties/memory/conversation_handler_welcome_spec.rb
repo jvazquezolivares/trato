@@ -26,7 +26,7 @@ RSpec.describe ConversationHandler, "P3: welcome on unknown sender", type: :prop
     PropertyTestHelper::MEMORY_ITERATIONS.times do |iteration|
       it "sends the welcome message (iteration #{iteration + 1})" do
         unknown_phone = "521#{rand(1_000_000_000..9_999_999_999)}"
-        random_body = [Faker::Lorem.sentence, Faker::Name.name, rand(100..999).to_s, "", nil].sample
+        random_body = [ Faker::Lorem.sentence, Faker::Name.name, rand(100..999).to_s, "", nil ].sample
 
         ConversationHandler.call(from: unknown_phone, body: random_body, media_url: nil)
 

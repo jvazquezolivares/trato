@@ -15,7 +15,7 @@
 #  provider_id :bigint       not null, FK → providers
 #
 class Review < ApplicationRecord
-  belongs_to :provider
+  belongs_to :provider, counter_cache: true
   belongs_to :client
   belongs_to :job
 end

@@ -33,7 +33,7 @@ RSpec.describe Assistants::EscalationDetector do
     end
 
     context "when multi-word danger phrases are detected" do
-      ["fuga de gas", "olor a quemado", "fuga de agua", "no puedo respirar", "ayuda urgente"].each do |phrase|
+      [ "fuga de gas", "olor a quemado", "fuga de agua", "no puedo respirar", "ayuda urgente" ].each do |phrase|
         it "detects '#{phrase}' as danger" do
           result = described_class.call(body: "Oye, hay #{phrase}", from: from, provider: provider, conversation: conversation)
 
@@ -51,7 +51,7 @@ RSpec.describe Assistants::EscalationDetector do
     end
 
     context "when speak-with-person patterns are detected" do
-      ["hablar con una persona", "necesito hablar con alguien", "persona real"].each do |phrase|
+      [ "hablar con una persona", "necesito hablar con alguien", "persona real" ].each do |phrase|
         it "detects '#{phrase}' as speak_with_person" do
           result = described_class.call(body: "Quiero #{phrase}", from: from, provider: provider, conversation: conversation)
 
@@ -61,7 +61,7 @@ RSpec.describe Assistants::EscalationDetector do
     end
 
     context "when price negotiation patterns are detected" do
-      ["muy caro", "más barato", "descuento", "no me alcanza"].each do |phrase|
+      [ "muy caro", "más barato", "descuento", "no me alcanza" ].each do |phrase|
         it "detects '#{phrase}' as price_negotiation" do
           result = described_class.call(body: "Está #{phrase}", from: from, provider: provider, conversation: conversation)
 
@@ -71,7 +71,7 @@ RSpec.describe Assistants::EscalationDetector do
     end
 
     context "when complaint patterns are detected" do
-      ["mal trabajo", "quedó mal", "no sirve", "reclamo"].each do |phrase|
+      [ "mal trabajo", "quedó mal", "no sirve", "reclamo" ].each do |phrase|
         it "detects '#{phrase}' as complaint" do
           result = described_class.call(body: "Fue un #{phrase}", from: from, provider: provider, conversation: conversation)
 

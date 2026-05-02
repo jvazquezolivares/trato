@@ -14,7 +14,7 @@ FactoryBot.define do
 
     trait :work do
       profile_photo { false }
-      category_tags { [Faker::Lorem.word, Faker::Lorem.word] }
+      category_tags { [ Faker::Lorem.word, Faker::Lorem.word ] }
     end
   end
 end

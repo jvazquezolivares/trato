@@ -26,7 +26,7 @@ RSpec.describe ConversationHandler, "P1: routing by phone match", type: :propert
 
     PropertyTestHelper::MEMORY_ITERATIONS.times do |iteration|
       it "routes to ProviderAssistant regardless of body content (iteration #{iteration + 1})" do
-        random_body = [Faker::Lorem.sentence, SecureRandom.hex(4), nil, "", "1", "2"].sample
+        random_body = [ Faker::Lorem.sentence, SecureRandom.hex(4), nil, "", "1", "2" ].sample
 
         ConversationHandler.call(from: provider.phone, body: random_body, media_url: nil)
 

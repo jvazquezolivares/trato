@@ -29,7 +29,7 @@ RSpec.describe WhatsAppService, type: :service do
             text: { body: "Hola Miguel" }
           }.to_json
         )
-        .to_return(status: 200, body: { messages: [{ id: "wamid.123" }] }.to_json)
+        .to_return(status: 200, body: { messages: [ { id: "wamid.123" } ] }.to_json)
 
       described_class.send_message(to: "5212211234567", message: "Hola Miguel")
 
@@ -48,7 +48,7 @@ RSpec.describe WhatsAppService, type: :service do
   end
 
   describe ".send_multipart" do
-    let(:messages) { ["Parte 1", "Parte 2", "Parte 3"] }
+    let(:messages) { [ "Parte 1", "Parte 2", "Parte 3" ] }
 
     before do
       stub_request(:post, api_url).to_return(status: 200, body: "{}".to_json)
@@ -69,7 +69,7 @@ RSpec.describe WhatsAppService, type: :service do
     end
 
     it "does not sleep when there is only one message" do
-      described_class.send_multipart(to: "5212211234567", messages: ["Solo uno"])
+      described_class.send_multipart(to: "5212211234567", messages: [ "Solo uno" ])
 
       expect(described_class).not_to have_received(:sleep)
     end

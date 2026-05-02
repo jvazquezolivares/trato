@@ -20,7 +20,7 @@ RSpec.describe ClaudeService do
   end
 
   let(:api_response) do
-    { "content" => [{ "text" => valid_response_body.to_json }] }
+    { "content" => [ { "text" => valid_response_body.to_json } ] }
   end
 
   let(:messages_double) { instance_double(Anthropic::Api::Messages) }
@@ -126,7 +126,7 @@ RSpec.describe ClaudeService do
 
         expect(messages_double).to have_received(:create).with(
           hash_including(
-            messages: [{ role: "user", content: user_message }]
+            messages: [ { role: "user", content: user_message } ]
           )
         )
       end
@@ -134,7 +134,7 @@ RSpec.describe ClaudeService do
 
     context "when Claude returns malformed JSON" do
       let(:bad_response) do
-        { "content" => [{ "text" => "This is not JSON at all" }] }
+        { "content" => [ { "text" => "This is not JSON at all" } ] }
       end
 
       before do
@@ -167,7 +167,7 @@ RSpec.describe ClaudeService do
 
     context "when Claude returns a non-object JSON (e.g. array)" do
       let(:array_response) do
-        { "content" => [{ "text" => "[1, 2, 3]" }] }
+        { "content" => [ { "text" => "[1, 2, 3]" } ] }
       end
 
       before do
@@ -271,7 +271,7 @@ RSpec.describe ClaudeService do
 
     context "when response has partial keys" do
       let(:partial_response) do
-        { "content" => [{ "text" => '{"message": "Hola", "action": "none"}' }] }
+        { "content" => [ { "text" => '{"message": "Hola", "action": "none"}' } ] }
       end
 
       before do

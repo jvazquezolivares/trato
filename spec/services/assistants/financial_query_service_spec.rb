@@ -127,8 +127,8 @@ RSpec.describe Assistants::FinancialQueryService do
       allow(expense_limited).to receive(:pluck)
         .with(:description, :amount, :recorded_at)
         .and_return([
-          ["Cable calibre 12", BigDecimal("350"), recorded_time],
-          ["Tubo PVC", BigDecimal("850"), recorded_time]
+          [ "Cable calibre 12", BigDecimal("350"), recorded_time ],
+          [ "Tubo PVC", BigDecimal("850"), recorded_time ]
         ])
     end
 
@@ -187,7 +187,7 @@ RSpec.describe Assistants::FinancialQueryService do
     before do
       allow(jobs_relation).to receive(:includes).with(:client).and_return(outstanding_scope)
       allow(outstanding_scope).to receive(:where).with(status: %w[pending partial]).and_return(outstanding_ordered)
-      allow(outstanding_ordered).to receive(:order).with(service_date: :desc).and_return([job_partial, job_pending])
+      allow(outstanding_ordered).to receive(:order).with(service_date: :desc).and_return([ job_partial, job_pending ])
     end
 
     it "returns total outstanding amount" do

@@ -108,7 +108,7 @@ RSpec.describe MorningSummaryJob, type: :job do
 
       before do
         stub_eligible_providers(provider)
-        stub_pending_tasks(provider, [task_one, task_two])
+        stub_pending_tasks(provider, [ task_one, task_two ])
       end
 
       it "includes the pending tasks in the message" do
@@ -147,7 +147,7 @@ RSpec.describe MorningSummaryJob, type: :job do
 
       before do
         stub_eligible_providers(provider)
-        stub_pending_tasks(provider, [single_task])
+        stub_pending_tasks(provider, [ single_task ])
       end
 
       it "uses singular form for one pending task" do

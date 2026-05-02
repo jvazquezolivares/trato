@@ -44,7 +44,7 @@ RSpec.describe PaymentReminderJob, type: :job do
 
       before do
         stub_providers_with_outstanding_jobs(provider)
-        stub_outstanding_jobs(provider, [outstanding_job])
+        stub_outstanding_jobs(provider, [ outstanding_job ])
       end
 
       it "sends a payment reminder via WhatsAppService" do
@@ -107,7 +107,7 @@ RSpec.describe PaymentReminderJob, type: :job do
 
       before do
         stub_providers_with_outstanding_jobs(provider)
-        stub_outstanding_jobs(provider, [job_one, job_two])
+        stub_outstanding_jobs(provider, [ job_one, job_two ])
       end
 
       it "lists each client with their outstanding balance" do
@@ -146,7 +146,7 @@ RSpec.describe PaymentReminderJob, type: :job do
 
       before do
         stub_providers_with_outstanding_jobs(provider)
-        stub_outstanding_jobs(provider, [job_one, job_two])
+        stub_outstanding_jobs(provider, [ job_one, job_two ])
       end
 
       it "sums the outstanding amounts for the same client" do
@@ -188,7 +188,7 @@ RSpec.describe PaymentReminderJob, type: :job do
 
       before do
         stub_providers_with_outstanding_jobs(provider)
-        stub_outstanding_jobs(provider, [job_a, job_b, job_c])
+        stub_outstanding_jobs(provider, [ job_a, job_b, job_c ])
       end
 
       it "lists all three clients with their balances" do
@@ -238,7 +238,7 @@ RSpec.describe PaymentReminderJob, type: :job do
 
       before do
         stub_providers_with_outstanding_jobs(provider)
-        stub_outstanding_jobs(provider, [job_no_name])
+        stub_outstanding_jobs(provider, [ job_no_name ])
       end
 
       it "uses a fallback name for the client" do
@@ -263,7 +263,7 @@ RSpec.describe PaymentReminderJob, type: :job do
 
     before do
       stub_providers_with_outstanding_jobs(provider)
-      stub_outstanding_jobs(provider, [job_record])
+      stub_outstanding_jobs(provider, [ job_record ])
     end
 
     it "uses no more than 2 emojis" do

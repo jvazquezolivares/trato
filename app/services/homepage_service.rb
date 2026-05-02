@@ -48,12 +48,12 @@ class HomepageService
 
     @featured_providers = if featured_ids.empty?
                             Provider.none
-                          else
+    else
                             Provider
                               .where(id: featured_ids)
                               .includes(:provider_categories, :photos, :reviews, :jobs)
                               .order(Arel.sql("ARRAY_POSITION(ARRAY[#{featured_ids.join(',')}], providers.id)"))
-                          end
+    end
   end
 
   def load_trust_metrics

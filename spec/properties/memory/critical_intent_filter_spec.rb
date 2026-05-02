@@ -45,10 +45,10 @@ RSpec.describe MessagePersistenceFilter, "P9: critical intents always persisted"
 
         # Apply random casing
         cased_intent = case rand(3)
-                       when 0 then intent.upcase
-                       when 1 then intent.capitalize
-                       else intent
-                       end
+        when 0 then intent.upcase
+        when 1 then intent.capitalize
+        else intent
+        end
 
         result = MessagePersistenceFilter.critical_intent?(cased_intent)
 

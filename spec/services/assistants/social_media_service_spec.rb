@@ -22,8 +22,8 @@ RSpec.describe Assistants::SocialMediaService do
   let(:photo) { instance_double(Photo, id: 10, url: "https://trato-photos.s3.amazonaws.com/photos/panel.jpg") }
 
   before do
-    allow(categories_relation).to receive(:pluck).with(:slug).and_return(["electricista"])
-    allow(categories_relation).to receive(:pluck).with(:name).and_return(["Electricista"])
+    allow(categories_relation).to receive(:pluck).with(:slug).and_return([ "electricista" ])
+    allow(categories_relation).to receive(:pluck).with(:name).and_return([ "Electricista" ])
     allow(WhatsAppService).to receive(:send_message).and_return(true)
   end
 
@@ -44,7 +44,7 @@ RSpec.describe Assistants::SocialMediaService do
           hash_including(
             url: "https://trato-photos.s3.amazonaws.com/photos/panel.jpg",
             caption: "Panel eléctrico",
-            category_tags: ["electricista"]
+            category_tags: [ "electricista" ]
           )
         )
       end

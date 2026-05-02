@@ -59,7 +59,7 @@ module ProvidersHelper
   # Renders filled star icons using Material Symbols style (matching Stitch design)
   # Returns HTML-safe string of star SVGs colored with secondary (#FEA619)
   def filled_stars(count, size: "sm")
-    safe_join(Array.new([count, 5].min) { star_filled_svg(size) })
+    safe_join(Array.new([ count, 5 ].min) { star_filled_svg(size) })
   end
 
   private
