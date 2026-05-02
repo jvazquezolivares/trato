@@ -49,7 +49,7 @@ RSpec.describe Assistants::ReviewSummaryService do
         allow(reviews_relation).to receive(:count).and_return(3)
         allow(reviews_relation).to receive(:average).with(:rating).and_return(4.7)
         allow(reviews_relation).to receive(:order).and_return(reviews_relation)
-        allow(reviews_relation).to receive(:limit).with(2).and_return([review])
+        allow(reviews_relation).to receive(:limit).with(2).and_return([ review ])
       end
 
       it "sends review summary to client" do

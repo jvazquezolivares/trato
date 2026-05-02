@@ -25,7 +25,7 @@ class ConversationHandler
 
     return send_welcome_and_store_state(from) if state.nil? || state["stage"] == "new"
     return handle_onboarding_welcome(from, body, state) if state["stage"] == "onboarding_welcome"
-    return OnboardingService.call(from: from, body: body) if onboarding_in_progress?(state)
+    OnboardingService.call(from: from, body: body) if onboarding_in_progress?(state)
   end
 
   def self.onboarding_in_progress?(state)

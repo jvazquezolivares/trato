@@ -170,13 +170,13 @@ class ClientAssistantOrchestrator
     photos = if category.present?
                @provider.photos
                         .where(profile_photo: false)
-                        .where("category_tags @> ?", [category].to_json)
+                        .where("category_tags @> ?", [ category ].to_json)
                         .limit(5)
-             else
+    else
                @provider.photos
                         .where(profile_photo: false)
                         .limit(5)
-             end
+    end
 
     return if photos.empty?
 

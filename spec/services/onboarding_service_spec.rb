@@ -123,7 +123,7 @@ RSpec.describe OnboardingService do
       before do
         allow(redis_mock).to receive(:get)
           .with("onboarding_state:#{phone}")
-          .and_return(redis_state(stage: "collecting_city", data: { "name" => "Miguel", "categories" => ["fontanero"] }))
+          .and_return(redis_state(stage: "collecting_city", data: { "name" => "Miguel", "categories" => [ "fontanero" ] }))
         allow(redis_mock).to receive(:setex).and_return("OK")
       end
 
@@ -142,7 +142,7 @@ RSpec.describe OnboardingService do
         allow(redis_mock).to receive(:get)
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_area", data: {
-            "name" => "Miguel", "categories" => ["fontanero"], "city" => "Veracruz"
+            "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
       end
@@ -162,7 +162,7 @@ RSpec.describe OnboardingService do
         allow(redis_mock).to receive(:get)
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_price", data: {
-            "name" => "Miguel", "categories" => ["fontanero"], "city" => "Veracruz",
+            "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
             "service_area" => "Boca del Río"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
@@ -188,7 +188,7 @@ RSpec.describe OnboardingService do
         allow(redis_mock).to receive(:get)
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_experience", data: {
-            "name" => "Miguel", "categories" => ["fontanero"], "city" => "Veracruz",
+            "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
             "service_area" => "Boca del Río", "base_price" => "300"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
@@ -209,7 +209,7 @@ RSpec.describe OnboardingService do
         allow(redis_mock).to receive(:get)
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_specialties", data: {
-            "name" => "Miguel", "categories" => ["fontanero"], "city" => "Veracruz",
+            "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
             "service_area" => "Boca del Río", "base_price" => "300", "years_experience" => "8"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
@@ -230,7 +230,7 @@ RSpec.describe OnboardingService do
         allow(redis_mock).to receive(:get)
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_specialized_work", data: {
-            "name" => "Miguel", "categories" => ["fontanero"], "city" => "Veracruz",
+            "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
             "service_area" => "Boca del Río", "base_price" => "300",
             "years_experience" => "8", "specialties" => "urgencias"
           }))
@@ -251,11 +251,11 @@ RSpec.describe OnboardingService do
   describe "bio generation flow" do
     let(:full_data) do
       {
-        "name" => "Miguel García", "categories" => ["fontanero"],
+        "name" => "Miguel García", "categories" => [ "fontanero" ],
         "city" => "Veracruz", "service_area" => "Boca del Río",
         "base_price" => "300", "years_experience" => "8",
         "specialties" => "urgencias", "specialized_work" => "calentadores",
-        "bio_answers" => ["Me gusta ayudar", "Un panel completo", "Soy puntual"],
+        "bio_answers" => [ "Me gusta ayudar", "Un panel completo", "Soy puntual" ],
         "bio_question_index" => 3
       }
     end
@@ -413,7 +413,7 @@ RSpec.describe OnboardingService do
   describe "photo collection" do
     let(:base_data) do
       {
-        "name" => "Miguel", "categories" => ["fontanero"], "city" => "Veracruz",
+        "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
         "service_area" => "Boca del Río", "base_price" => "300",
         "bio" => "Miguel es fontanero..."
       }
@@ -477,7 +477,7 @@ RSpec.describe OnboardingService do
   describe "Facebook and email collection" do
     let(:base_data) do
       {
-        "name" => "Miguel", "categories" => ["fontanero"], "city" => "Veracruz",
+        "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
         "service_area" => "Boca del Río", "base_price" => "300",
         "bio" => "Miguel es fontanero..."
       }
@@ -528,7 +528,7 @@ RSpec.describe OnboardingService do
   describe "provider creation and completion" do
     let(:complete_data) do
       {
-        "name" => "Miguel García", "categories" => ["fontanero", "electricista"],
+        "name" => "Miguel García", "categories" => [ "fontanero", "electricista" ],
         "city" => "Veracruz", "service_area" => "Boca del Río, Centro",
         "base_price" => "300", "bio" => "Miguel es fontanero con experiencia...",
         "email" => "miguel@gmail.com", "facebook_page_url" => nil

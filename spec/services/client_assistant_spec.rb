@@ -74,8 +74,8 @@ RSpec.describe ClientAssistant do
 
     # Provider associations
     allow(provider).to receive(:provider_categories).and_return(provider_categories_relation)
-    allow(provider_categories_relation).to receive(:pluck).with(:name).and_return(["Electricista"])
-    allow(provider_categories_relation).to receive(:pluck).with(:slug).and_return(["electricista"])
+    allow(provider_categories_relation).to receive(:pluck).with(:name).and_return([ "Electricista" ])
+    allow(provider_categories_relation).to receive(:pluck).with(:slug).and_return([ "electricista" ])
 
     # Reviews
     allow(provider).to receive(:reviews).and_return(reviews_relation)
@@ -93,7 +93,7 @@ RSpec.describe ClientAssistant do
     # Photos
     allow(provider).to receive(:photos).and_return(photos_relation)
     allow(photos_relation).to receive(:where).with(profile_photo: false).and_return(photos_relation)
-    allow(photos_relation).to receive(:pluck).with(:category_tags).and_return([["electricista"], ["fontanero"]])
+    allow(photos_relation).to receive(:pluck).with(:category_tags).and_return([ [ "electricista" ], [ "fontanero" ] ])
     allow(photos_relation).to receive(:where).with("category_tags @> ?", anything).and_return(photos_relation)
     allow(photos_relation).to receive(:limit).and_return([])
 
@@ -400,7 +400,7 @@ RSpec.describe ClientAssistant do
       end
 
       before do
-        allow(photos_relation).to receive(:limit).with(5).and_return([photo])
+        allow(photos_relation).to receive(:limit).with(5).and_return([ photo ])
       end
 
       it "sends work photos via multipart" do
@@ -631,7 +631,7 @@ RSpec.describe ClientAssistant do
       instance_double(Message, direction: "inbound", body: "Necesito un electricista", created_at: 1.hour.ago)
     end
 
-    let(:limited_messages) { [message_double] }
+    let(:limited_messages) { [ message_double ] }
 
     it "builds history from recent messages" do
       described_class.call(provider: provider, from: client_phone, body: "Hola")
@@ -639,7 +639,7 @@ RSpec.describe ClientAssistant do
       expect(ClaudeService).to have_received(:call).with(
         hash_including(
           context: hash_including(
-            "history" => [{ "role" => "user", "content" => "Necesito un electricista" }]
+            "history" => [ { "role" => "user", "content" => "Necesito un electricista" } ]
           )
         )
       )
@@ -708,7 +708,7 @@ RSpec.describe ClientAssistant do
         )
       end
 
-      let(:found_categories) { double("categories", pluck: ["Fontanero"]) }
+      let(:found_categories) { double("categories", pluck: [ "Fontanero" ]) }
 
       let(:search_response) do
         {
@@ -729,11 +729,11 @@ RSpec.describe ClientAssistant do
         allow(search_scope).to receive(:where).and_return(search_scope)
         allow(search_scope).to receive(:joins).and_return(search_scope)
         allow(search_scope).to receive(:distinct).and_return(search_scope)
-        allow(search_scope).to receive(:limit).with(5).and_return([found_provider])
+        allow(search_scope).to receive(:limit).with(5).and_return([ found_provider ])
         allow(search_scope).to receive(:one?).and_return(true)
         allow(search_scope).to receive(:first).and_return(found_provider)
         allow(found_provider).to receive(:provider_categories).and_return(found_categories)
-        allow(found_categories).to receive(:pluck).with(:name).and_return(["Fontanero"])
+        allow(found_categories).to receive(:pluck).with(:name).and_return([ "Fontanero" ])
         allow(REDIS).to receive(:del).and_return(1)
       end
 
@@ -774,7 +774,7 @@ RSpec.describe ClientAssistant do
   describe "photo categories in prompt" do
     context "when provider has work photos with tags" do
       before do
-        allow(photos_relation).to receive(:pluck).with(:category_tags).and_return([["electricista", "panel"], ["fontanero"]])
+        allow(photos_relation).to receive(:pluck).with(:category_tags).and_return([ [ "electricista", "panel" ], [ "fontanero" ] ])
       end
 
       it "includes photo categories in system prompt" do

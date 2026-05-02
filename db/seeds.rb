@@ -10,8 +10,8 @@ puts "🌱 Seeding Trato database..."
 
 # ─── Clean slate ───────────────────────────────────────────────
 puts "  Cleaning existing data..."
-[SocialPost, Photo, Review, Transaction, Job, Appointment, WorkDay,
- Task, ProviderClient, Conversation, Message, ProviderCategory, Client, Provider].each(&:delete_all)
+[ SocialPost, Photo, Review, Transaction, Job, Appointment, WorkDay,
+ Task, ProviderClient, Conversation, Message, ProviderCategory, Client, Provider ].each(&:delete_all)
 
 # ─── Helpers ───────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ providers_data = [
       { name: "Electricista", slug: "electricista", primary: true },
       { name: "Instalaciones", slug: "instalaciones", primary: false }
     ],
-    specialties: ["urgencias", "paneles-electricos", "instalaciones-residenciales"],
+    specialties: [ "urgencias", "paneles-electricos", "instalaciones-residenciales" ],
     work_photos: [
       { caption: "Panel eléctrico residencial instalado en Boca del Río", seed: "trato-elec-1" },
       { caption: "Instalación de contactos y apagadores en cocina", seed: "trato-elec-2" },
@@ -54,7 +54,7 @@ providers_data = [
       { name: "Fontanero", slug: "fontanero", primary: true },
       { name: "Instalaciones hidráulicas", slug: "instalaciones-hidraulicas", primary: false }
     ],
-    specialties: ["fugas", "destape-tuberias", "calentadores-solares"],
+    specialties: [ "fugas", "destape-tuberias", "calentadores-solares" ],
     work_photos: [
       { caption: "Reparación de fuga en baño principal", seed: "trato-font-1" },
       { caption: "Instalación de calentador solar en azotea", seed: "trato-font-2" },
@@ -73,7 +73,7 @@ providers_data = [
       { name: "Carpintero", slug: "carpintero", primary: true },
       { name: "Muebles a medida", slug: "muebles-a-medida", primary: false }
     ],
-    specialties: ["cocinas-integrales", "closets", "muebles-a-medida"],
+    specialties: [ "cocinas-integrales", "closets", "muebles-a-medida" ],
     work_photos: [
       { caption: "Cocina integral de encino terminada", seed: "trato-carp-1" },
       { caption: "Closet empotrado con puertas corredizas", seed: "trato-carp-2" },
@@ -94,7 +94,7 @@ providers_data = [
       { name: "Albañil", slug: "albanil", primary: true },
       { name: "Remodelaciones", slug: "remodelaciones", primary: false }
     ],
-    specialties: ["remodelaciones", "acabados", "impermeabilizacion"],
+    specialties: [ "remodelaciones", "acabados", "impermeabilizacion" ],
     work_photos: [
       { caption: "Remodelación completa de baño", seed: "trato-alba-1" },
       { caption: "Construcción de barda perimetral", seed: "trato-alba-2" },
@@ -113,7 +113,7 @@ providers_data = [
       { name: "Pintora", slug: "pintor", primary: true },
       { name: "Acabados decorativos", slug: "acabados-decorativos", primary: false }
     ],
-    specialties: ["interiores", "fachadas", "acabados-decorativos"],
+    specialties: [ "interiores", "fachadas", "acabados-decorativos" ],
     work_photos: [
       { caption: "Pintura de sala con acabado texturizado", seed: "trato-pint-1" },
       { caption: "Restauración de fachada colonial", seed: "trato-pint-2" },
@@ -133,7 +133,7 @@ providers_data = [
       { name: "Aire acondicionado", slug: "aire-acondicionado", primary: true },
       { name: "Refrigeración", slug: "refrigeracion", primary: false }
     ],
-    specialties: ["minisplits", "aires-centrales", "refrigeracion-comercial"],
+    specialties: [ "minisplits", "aires-centrales", "refrigeracion-comercial" ],
     work_photos: [
       { caption: "Instalación de minisplit inverter en oficina", seed: "trato-aire-1" },
       { caption: "Mantenimiento preventivo de aire central", seed: "trato-aire-2" },
@@ -151,7 +151,7 @@ providers_data = [
     categories: [
       { name: "Cerrajero", slug: "cerrajero", primary: true }
     ],
-    specialties: ["emergencias-24h", "cerraduras-seguridad", "puertas-blindadas"],
+    specialties: [ "emergencias-24h", "cerraduras-seguridad", "puertas-blindadas" ],
     work_photos: [
       { caption: "Instalación de cerradura de alta seguridad", seed: "trato-cerr-1" },
       { caption: "Cambio de chapa en puerta principal", seed: "trato-cerr-2" }
@@ -169,7 +169,7 @@ providers_data = [
       { name: "Decoradora", slug: "decorador", primary: true },
       { name: "Diseño de interiores", slug: "diseno-interiores", primary: false }
     ],
-    specialties: ["remodelaciones-integrales", "espacios-pequenos", "iluminacion"],
+    specialties: [ "remodelaciones-integrales", "espacios-pequenos", "iluminacion" ],
     work_photos: [
       { caption: "Remodelación de sala estilo moderno", seed: "trato-deco-1" },
       { caption: "Diseño de recámara principal", seed: "trato-deco-2" },
@@ -214,7 +214,7 @@ review_comments = [
   nil, # Some reviews without comment
   nil,
   "Quedé muy contenta con el resultado. Definitivamente lo vuelvo a llamar.",
-  "Profesional de verdad. Se nota la experiencia.",
+  "Profesional de verdad. Se nota la experiencia."
 ]
 
 # ─── Create records ────────────────────────────────────────────
@@ -288,7 +288,7 @@ providers_data.each_with_index do |data, provider_index|
   job_count.times do |job_index|
     client = assigned_clients.sample
     service_date = rand(7..120).days.ago.to_date
-    amount = [500, 800, 1200, 1500, 2000, 2500, 3000, 3500, 4500].sample
+    amount = [ 500, 800, 1200, 1500, 2000, 2500, 3000, 3500, 4500 ].sample
     status = %w[paid paid paid paid partial pending].sample
     paid_amount = status == "paid" ? amount : (status == "partial" ? (amount * 0.5).to_i : 0)
 
@@ -331,7 +331,7 @@ providers_data.each_with_index do |data, provider_index|
 
   # Create 2-5 reviews per provider (only for paid jobs)
   paid_jobs = provider_jobs.select { |j| j.status == "paid" }
-  review_count = [rand(2..5), paid_jobs.size].min
+  review_count = [ rand(2..5), paid_jobs.size ].min
   reviewed_jobs = paid_jobs.sample(review_count)
 
   reviewed_jobs.each do |job|
@@ -339,7 +339,7 @@ providers_data.each_with_index do |data, provider_index|
       provider: provider,
       client: job.client,
       job: job,
-      rating: [4, 4, 5, 5, 5, 5, 3, 5].sample,
+      rating: [ 4, 4, 5, 5, 5, 5, 3, 5 ].sample,
       comment: review_comments.sample,
       verified: true
     )
@@ -349,7 +349,7 @@ providers_data.each_with_index do |data, provider_index|
   rand(1..2).times do
     Transaction.create!(
       provider: provider,
-      amount: -[150, 250, 350, 500, 800].sample,
+      amount: -[ 150, 250, 350, 500, 800 ].sample,
       transaction_type: "expense",
       description: [
         "Material: cable calibre 12",

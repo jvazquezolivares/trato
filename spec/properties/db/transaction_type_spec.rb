@@ -44,7 +44,7 @@ RSpec.describe "P10: transaction_type is always a valid enum value", type: :prop
   end
 
   it "rejects transaction_type values outside the allowed set" do
-    invalid_types = ["type", "Type", "TYPE", "debit", "credit", "", nil]
+    invalid_types = [ "type", "Type", "TYPE", "debit", "credit", "", nil ]
 
     invalid_types.each do |invalid_type|
       # The model should either reject or the DB should store exactly what we set.

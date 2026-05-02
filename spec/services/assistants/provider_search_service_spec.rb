@@ -81,11 +81,11 @@ RSpec.describe Assistants::ProviderSearchService do
         allow(search_scope).to receive(:where).and_return(search_scope)
         allow(search_scope).to receive(:joins).and_return(search_scope)
         allow(search_scope).to receive(:distinct).and_return(search_scope)
-        allow(search_scope).to receive(:limit).with(5).and_return([found_provider])
+        allow(search_scope).to receive(:limit).with(5).and_return([ found_provider ])
         allow(search_scope).to receive(:one?).and_return(true)
         allow(search_scope).to receive(:first).and_return(found_provider)
         allow(found_provider).to receive(:provider_categories).and_return(found_categories)
-        allow(found_categories).to receive(:pluck).with(:name).and_return(["Fontanero"])
+        allow(found_categories).to receive(:pluck).with(:name).and_return([ "Fontanero" ])
         allow(REDIS).to receive(:del).and_return(1)
       end
 

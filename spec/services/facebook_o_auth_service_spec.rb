@@ -135,7 +135,7 @@ RSpec.describe FacebookOAuthService do
       let(:pages_response) do
         instance_double(HTTParty::Response,
           success?: true,
-          parsed_response: { "data" => [{ "id" => "page_123", "access_token" => "page_token_abc" }] })
+          parsed_response: { "data" => [ { "id" => "page_123", "access_token" => "page_token_abc" } ] })
       end
 
       let(:ig_response) do
@@ -267,7 +267,7 @@ RSpec.describe FacebookOAuthService do
       let(:pages_response) do
         instance_double(HTTParty::Response,
           success?: true,
-          parsed_response: { "data" => [{ "id" => "page_123", "access_token" => "page_token" }] })
+          parsed_response: { "data" => [ { "id" => "page_123", "access_token" => "page_token" } ] })
       end
 
       let(:ig_response) do

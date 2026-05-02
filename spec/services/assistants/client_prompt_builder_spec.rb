@@ -26,8 +26,8 @@ RSpec.describe Assistants::ClientPromptBuilder do
 
   before do
     allow(provider).to receive(:provider_categories).and_return(provider_categories_relation)
-    allow(provider_categories_relation).to receive(:pluck).with(:name).and_return(["Electricista"])
-    allow(provider_categories_relation).to receive(:pluck).with(:slug).and_return(["electricista"])
+    allow(provider_categories_relation).to receive(:pluck).with(:name).and_return([ "Electricista" ])
+    allow(provider_categories_relation).to receive(:pluck).with(:slug).and_return([ "electricista" ])
 
     allow(provider).to receive(:reviews).and_return(reviews_relation)
     allow(reviews_relation).to receive(:where).with(verified: true).and_return(reviews_relation)
@@ -39,7 +39,7 @@ RSpec.describe Assistants::ClientPromptBuilder do
 
     allow(provider).to receive(:photos).and_return(photos_relation)
     allow(photos_relation).to receive(:where).with(profile_photo: false).and_return(photos_relation)
-    allow(photos_relation).to receive(:pluck).with(:category_tags).and_return([["electricista"]])
+    allow(photos_relation).to receive(:pluck).with(:category_tags).and_return([ [ "electricista" ] ])
 
     allow(messages_relation).to receive(:order).and_return(ordered_messages)
     allow(ordered_messages).to receive(:limit).and_return([])

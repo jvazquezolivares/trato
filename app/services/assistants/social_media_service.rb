@@ -125,10 +125,10 @@ module Assistants
 
     def notify_success(social_post)
       platform_text = case social_post.platform
-                      when "both" then "Facebook e Instagram"
-                      when "facebook" then "Facebook"
-                      when "instagram" then "Instagram"
-                      end
+      when "both" then "Facebook e Instagram"
+      when "facebook" then "Facebook"
+      when "instagram" then "Instagram"
+      end
 
       WhatsAppService.send_message(
         to: @provider.phone,
