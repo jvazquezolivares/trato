@@ -42,6 +42,11 @@ RSpec.describe Assistants::ProviderPromptBuilder do
     allow(jobs_includes).to receive(:order).and_return(jobs_includes)
     allow(jobs_includes).to receive(:limit).and_return([])
 
+    # Stub work_days chain
+    work_days_relation = double("work_days_relation")
+    allow(provider).to receive(:work_days).and_return(work_days_relation)
+    allow(work_days_relation).to receive(:find_by).with(date: Date.current).and_return(nil)
+
     allow(messages_relation).to receive(:order).and_return(ordered_messages)
     allow(ordered_messages).to receive(:limit).and_return([])
   end
@@ -82,6 +87,63 @@ RSpec.describe Assistants::ProviderPromptBuilder do
       result = described_class.call(provider: provider, conversation: conversation)
 
       expect(result[:context]).to have_key("history")
+    end
+
+    it "includes update_work_day action in prompt" do
+      result = described_class.call(provider: provider, conversation: conversation)
+
+      expect(result[:system_prompt]).to include("update_work_day")
+    end
+
+    it "includes work day instructions in prompt" do
+      result = described_class.call(provider: provider, conversation: conversation)
+
+      expect(result[:system_prompt]).to include("JORNADA DE TRABAJO")
+    end
+
+    context "when no WorkDay exists for today" do
+      it "shows 'no registrada aún' in prompt" do
+        result = described_class.call(provider: provider, conversation: conversation)
+
+        expect(result[:system_prompt]).to include("no registrada aún")
+      end
+    end
+
+    context "when a WorkDay exists for today" do
+      let(:work_day) do
+        instance_double(
+          WorkDay,
+          status: "active",
+          starts_at: Time.zone.parse("08:00"),
+          ends_at: Time.zone.parse("18:00"),
+          notes: "Cita a las 10"
+        )
+      end
+
+      before do
+        work_days_relation = double("work_days_relation")
+        allow(provider).to receive(:work_days).and_return(work_days_relation)
+        allow(work_days_relation).to receive(:find_by).with(date: Date.current).and_return(work_day)
+      end
+
+      it "includes work day status in prompt" do
+        result = described_class.call(provider: provider, conversation: conversation)
+
+        expect(result[:system_prompt]).to include("estado: active")
+      end
+
+      it "includes work day times in prompt" do
+        result = described_class.call(provider: provider, conversation: conversation)
+
+        expect(result[:system_prompt]).to include("inicio: 08:00")
+        expect(result[:system_prompt]).to include("fin: 18:00")
+      end
+
+      it "includes work day notes in prompt" do
+        result = described_class.call(provider: provider, conversation: conversation)
+
+        expect(result[:system_prompt]).to include("Cita a las 10")
+      end
     end
   end
 end

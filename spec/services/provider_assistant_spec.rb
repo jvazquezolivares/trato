@@ -55,6 +55,12 @@ RSpec.describe ProviderAssistant do
     allow(jobs_order).to receive(:order).and_return(jobs_order)
     allow(jobs_order).to receive(:limit).and_return([])
 
+    # Stub work_days chain for today_work_day_summary
+    work_days_relation = double("work_days_relation")
+    allow(provider).to receive(:work_days).and_return(work_days_relation)
+    allow(work_days_relation).to receive(:find_by).with(date: Date.current).and_return(nil)
+    allow(work_days_relation).to receive(:find_or_initialize_by).and_return(instance_double(WorkDay, save!: true))
+
     allow(ClaudeService).to receive(:call).and_return(claude_response)
     allow(WhatsAppService).to receive(:send_message).and_return(true)
   end
@@ -247,13 +253,47 @@ RSpec.describe ProviderAssistant do
       end
     end
 
+    context "when action is update_work_day" do
+      let(:claude_response) do
+        {
+          "message" => "Listo, registré tu jornada de hoy 👍",
+          "action" => "update_work_day",
+          "action_data" => {
+            "starts_at" => "08:00",
+            "ends_at" => "18:00",
+            "status" => "active",
+            "notes" => "Cita en Boca del Río a las 10"
+          },
+          "new_stage" => "active",
+          "updated_context" => {},
+          "should_save_message" => true,
+          "intent" => "work_day_updated"
+        }
+      end
+
+      before do
+        allow(Assistants::WorkDayService).to receive(:call).and_return(nil)
+      end
+
+      it "delegates to Assistants::WorkDayService" do
+        described_class.call(provider: provider, body: "Hoy trabajo de 8 a 6")
+
+        expect(Assistants::WorkDayService).to have_received(:call).with(
+          provider: provider,
+          action_data: claude_response["action_data"]
+        )
+      end
+    end
+
     context "when action is none" do
-      it "does not call JobRegistrationService" do
+      it "does not call JobRegistrationService or WorkDayService" do
         allow(JobRegistrationService).to receive(:call)
+        allow(Assistants::WorkDayService).to receive(:call)
 
         described_class.call(provider: provider, body: "Hola")
 
         expect(JobRegistrationService).not_to have_received(:call)
+        expect(Assistants::WorkDayService).not_to have_received(:call)
       end
     end
   end

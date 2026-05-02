@@ -64,6 +64,24 @@ module Assistants
         "job_id": "id del trabajo o null"
       }
 
+      JORNADA DE TRABAJO (action: "update_work_day"):
+      Cuando %{provider_name} mencione su disponibilidad, horario, o describa su día:
+      - Extrae: starts_at, ends_at, status, notes
+      - Si dice "ya empecé" o "ya estoy trabajando": status = "active", starts_at = hora actual o la que mencione
+      - Si dice "ya terminé" o "ya acabé": status = "finished", ends_at = hora actual o la que mencione
+      - Si dice "hoy voy a trabajar de X a Y": status = "planning", starts_at y ends_at según lo que diga
+      - Si solo menciona disponibilidad parcial, actualiza solo los campos mencionados
+      - NUNCA regañes ni presiones a %{provider_name} por no reportar su disponibilidad
+      - Responde de forma natural y breve, confirmando lo que entendiste
+
+      action_data para update_work_day:
+      {
+        "starts_at": "HH:MM (24h) o null",
+        "ends_at": "HH:MM (24h) o null",
+        "status": "planning|active|finished",
+        "notes": "notas adicionales o null"
+      }
+
       TONO:
       - Español mexicano coloquial y cálido, siempre respetuoso
       - Máximo 1-2 emojis por mensaje
@@ -74,6 +92,7 @@ module Assistants
       CONTEXTO DEL PROVEEDOR:
       - Clientes registrados: %{client_names}
       - Trabajos recientes: %{recent_jobs}
+      - Jornada de hoy: %{today_work_day}
     PROMPT
 
     def self.call(provider:, conversation:)
@@ -101,7 +120,8 @@ module Assistants
         categories: provider_categories.presence || "técnico",
         city: @provider.city || "su ciudad",
         client_names: recent_client_names.presence || "ninguno aún",
-        recent_jobs: recent_jobs_summary.presence || "ninguno aún"
+        recent_jobs: recent_jobs_summary.presence || "ninguno aún",
+        today_work_day: today_work_day_summary
       )
     end
 
@@ -127,6 +147,18 @@ module Assistants
                .limit(5)
                .map { |job| "#{job.client&.name}: #{job.description} ($#{job.amount})" }
                .join("; ")
+    end
+
+    def today_work_day_summary
+      work_day = @provider.work_days.find_by(date: Date.current)
+      return "no registrada aún" unless work_day
+
+      parts = []
+      parts << "estado: #{work_day.status}" if work_day.status.present?
+      parts << "inicio: #{work_day.starts_at&.strftime('%H:%M')}" if work_day.starts_at.present?
+      parts << "fin: #{work_day.ends_at&.strftime('%H:%M')}" if work_day.ends_at.present?
+      parts << "notas: #{work_day.notes}" if work_day.notes.present?
+      parts.join(", ")
     end
 
     def build_context
