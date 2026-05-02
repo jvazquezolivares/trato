@@ -1,0 +1,92 @@
+<% content_for(:title) { "Iniciar sesión — Trato" } %>
+
+<main class="flex-grow flex items-center justify-center p-6 sm:p-12 relative overflow-hidden min-h-screen bg-[#F8FAFC]">
+  <%# Abstract background blobs for warmth — Stitch design %>
+  <div class="absolute top-0 right-0 w-96 h-96 bg-[#9cf2e8]/20 rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none"></div>
+  <div class="absolute bottom-0 left-0 w-96 h-96 bg-[#ffddb8]/20 rounded-full blur-3xl -ml-48 -mb-48 pointer-events-none"></div>
+
+  <div class="w-full max-w-md z-10">
+    <%# Brand identity %>
+    <div class="text-center mb-10">
+      <a href="<%= root_path %>">
+        <span class="text-3xl font-[Plus_Jakarta_Sans] font-extrabold tracking-tight text-[#005C55]">Trato</span>
+      </a>
+    </div>
+
+    <%# Login card — editorial shadow, no borders per design system %>
+    <div class="bg-white rounded-xl p-8" style="box-shadow: 0 32px 64px -12px rgba(17, 28, 45, 0.06);">
+      <section class="space-y-8">
+        <div class="text-center">
+          <h1 class="text-2xl font-[Plus_Jakarta_Sans] font-bold text-[#111C2D] mb-3 tracking-tight">
+            Accede a tu perfil
+          </h1>
+          <p class="text-[#3E4947] text-sm leading-relaxed max-w-[280px] mx-auto">
+            Te enviaremos un código por WhatsApp para validar tu identidad.
+          </p>
+        </div>
+
+        <%# Flash messages %>
+        <% if flash[:notice] %>
+          <div class="p-3 bg-[#9cf2e8]/20 rounded-xl text-sm text-[#005C55] font-medium" role="status">
+            <%= flash[:notice] %>
+          </div>
+        <% end %>
+        <% if flash[:alert] %>
+          <div class="p-3 bg-[#ffdad6] rounded-xl text-sm text-[#93000a]" role="alert">
+            <%= flash[:alert] %>
+          </div>
+        <% end %>
+
+        <%# Phone input form %>
+        <%= form_with url: login_path, method: :post, class: "space-y-6", data: { turbo: false } do |f| %>
+          <div class="space-y-2">
+            <label for="phone" class="text-xs font-semibold uppercase tracking-wider text-[#3E4947] ml-1">
+              Teléfono
+            </label>
+            <div class="relative group">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span class="text-[#111C2D] font-medium border-r pr-3" style="border-color: rgba(189, 201, 198, 0.3);">+52</span>
+              </div>
+              <input
+                type="tel"
+                name="phone"
+                id="phone"
+                required
+                autofocus
+                autocomplete="tel"
+                inputmode="numeric"
+                placeholder="55 1234 5678"
+                class="w-full pl-16 pr-4 py-4 bg-[#F0F3FF] rounded-xl focus:ring-2 focus:ring-[#005C55]
+                       focus:border-transparent outline-none transition-all placeholder:text-[#6E7977]/50
+                       font-medium text-lg text-[#111C2D]"
+                style="border: 1px solid rgba(189, 201, 198, 0.15);"
+              >
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full py-4 bg-gradient-to-r from-[#005C55] to-[#0F766E] text-white font-bold rounded-xl
+                   shadow-lg shadow-[#005C55]/20 hover:scale-[0.98] transition-transform
+                   flex items-center justify-center gap-2 group"
+          >
+            Enviar código
+            <span class="material-symbols-outlined text-xl group-hover:translate-x-1 transition-transform">arrow_forward</span>
+          </button>
+        <% end %>
+      </section>
+    </div>
+
+    <%# Contextual footer %>
+    <footer class="mt-12 text-center">
+      <p class="text-xs text-[#3E4947] font-medium opacity-60">
+        © 2025 Trato. Tu hogar, en buenas manos.
+      </p>
+      <div class="flex justify-center gap-6 mt-4">
+        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Términos</a>
+        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Privacidad</a>
+        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Soporte</a>
+      </div>
+    </footer>
+  </div>
+</main>

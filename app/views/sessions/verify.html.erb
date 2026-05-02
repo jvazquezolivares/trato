@@ -1,0 +1,104 @@
+<% content_for(:title) { "Verificar código — Trato" } %>
+
+<main class="flex-grow flex items-center justify-center p-6 sm:p-12 relative overflow-hidden min-h-screen bg-[#F8FAFC]">
+  <%# Abstract background blobs for warmth — Stitch design %>
+  <div class="absolute top-0 right-0 w-96 h-96 bg-[#9cf2e8]/20 rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none"></div>
+  <div class="absolute bottom-0 left-0 w-96 h-96 bg-[#ffddb8]/20 rounded-full blur-3xl -ml-48 -mb-48 pointer-events-none"></div>
+
+  <div class="w-full max-w-md z-10">
+    <%# Brand identity %>
+    <div class="text-center mb-10">
+      <a href="<%= root_path %>">
+        <span class="text-3xl font-[Plus_Jakarta_Sans] font-extrabold tracking-tight text-[#005C55]">Trato</span>
+      </a>
+    </div>
+
+    <%# Verification card — editorial shadow, no borders per design system %>
+    <div class="bg-white rounded-xl p-8" style="box-shadow: 0 32px 64px -12px rgba(17, 28, 45, 0.06);">
+      <section class="space-y-8">
+        <div class="text-center">
+          <h1 class="text-xl font-[Plus_Jakarta_Sans] font-bold text-[#111C2D] mb-3">
+            Ingresa tu código
+          </h1>
+          <p class="text-[#3E4947] text-sm">
+            Enviado al WhatsApp <span class="font-bold text-[#111C2D]"><%= @masked_phone %></span>
+          </p>
+        </div>
+
+        <%# Flash alert %>
+        <% if flash[:alert] %>
+          <div class="p-3 bg-[#ffdad6] rounded-xl text-sm text-[#93000a]" role="alert">
+            <%= flash[:alert] %>
+          </div>
+        <% end %>
+
+        <%# OTP input form %>
+        <%= form_with url: login_verify_path, method: :post, class: "space-y-8",
+                      data: { turbo: false, controller: "otp-input" } do |f| %>
+
+          <%# 6 individual digit boxes — Stitch design: ghost-border, surface-container-low bg %>
+          <div class="flex justify-between gap-2 sm:gap-3" data-otp-input-target="container">
+            <% 6.times do |i| %>
+              <input
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]"
+                maxlength="1"
+                required
+                autocomplete="one-time-code"
+                placeholder="·"
+                class="w-12 h-14 text-center text-xl font-bold bg-[#F0F3FF] rounded-xl
+                       focus:ring-2 focus:ring-[#005C55] focus:border-transparent outline-none transition-all"
+                style="border: 1px solid rgba(189, 201, 198, 0.15);"
+                data-otp-input-target="digit"
+                data-index="<%= i %>"
+                aria-label="Dígito <%= i + 1 %> del código"
+              >
+            <% end %>
+          </div>
+
+          <%# Hidden field that collects the full 6-digit code %>
+          <input type="hidden" name="code" id="otp-code-hidden" data-otp-input-target="hiddenCode">
+
+          <div class="space-y-4">
+            <button
+              type="submit"
+              class="w-full py-4 bg-gradient-to-r from-[#005C55] to-[#0F766E] text-white font-bold rounded-xl
+                     shadow-lg shadow-[#005C55]/20 hover:scale-[0.98] transition-transform"
+            >
+              Verificar →
+            </button>
+
+            <div class="text-center flex flex-col items-center gap-2">
+              <%# Resend link %>
+              <%= form_with url: login_path, method: :post, data: { turbo: false } do %>
+                <input type="hidden" name="phone" value="<%= session[:otp_phone] %>">
+                <button type="submit" class="text-[#005C55] text-sm font-semibold hover:underline transition-all">
+                  No recibí el código
+                </button>
+              <% end %>
+
+              <%# Countdown timer chip — Stitch design %>
+              <div class="flex items-center gap-2 text-[#3E4947] text-xs font-medium bg-[#F0F3FF] px-3 py-1.5 rounded-full">
+                <span class="material-symbols-outlined text-sm">schedule</span>
+                Puedes reenviar en 0:45
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </section>
+    </div>
+
+    <%# Contextual footer %>
+    <footer class="mt-12 text-center">
+      <p class="text-xs text-[#3E4947] font-medium opacity-60">
+        © 2025 Trato. Tu hogar, en buenas manos.
+      </p>
+      <div class="flex justify-center gap-6 mt-4">
+        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Términos</a>
+        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Privacidad</a>
+        <a href="#" class="text-xs text-[#3E4947] hover:text-[#005C55] transition-colors">Soporte</a>
+      </div>
+    </footer>
+  </div>
+</main>
