@@ -36,7 +36,13 @@ class ConversationHandler
   # --- Private helpers ---
 
   def self.provider_by_phone(phone)
-    @_provider_by_phone = Provider.find_by(phone: phone)
+    @_provider_by_phone = Provider.includes(
+      :provider_categories,
+      :work_days,
+      :tasks,
+      provider_clients: :client,
+      jobs: :client
+    ).find_by(phone: phone)
   end
 
   def self.provider_by_short_uuid(body)

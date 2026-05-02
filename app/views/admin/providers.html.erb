@@ -54,7 +54,8 @@
       <tbody class="divide-y divide-slate-50">
         <% @providers.each do |provider| %>
           <% primary_cat = provider.provider_categories.find(&:primary?) %>
-          <% avg_rating = provider.reviews.any? ? provider.reviews.average(:rating).to_f.round(1) : nil %>
+          <% loaded_reviews = provider.reviews.to_a %>
+          <% avg_rating = loaded_reviews.any? ? (loaded_reviews.sum(&:rating).to_f / loaded_reviews.size).round(1) : nil %>
           <tr class="hover:bg-[#F9F9FF] transition-colors">
             <td class="px-4 lg:px-6 py-4">
               <div class="flex items-center gap-3">
@@ -82,7 +83,7 @@
             </td>
             <td class="px-4 lg:px-6 py-4 text-sm hidden lg:table-cell">
               <% if avg_rating %>
-                <span class="text-amber-500">⭐</span> <%= avg_rating %> (<%= provider.reviews.size %>)
+                <span class="text-amber-500">⭐</span> <%= avg_rating %> (<%= loaded_reviews.size %>)
               <% else %>
                 <span class="text-slate-400">Sin reseñas</span>
               <% end %>

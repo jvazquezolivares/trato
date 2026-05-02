@@ -24,9 +24,9 @@ module DirectoriesHelper
     (verified.sum(&:rating).to_f / verified.size).round(1)
   end
 
-  # Returns the count of verified reviews
+  # Returns the count of verified reviews using counter cache
   def review_count_for(provider)
-    provider.reviews.count(&:verified?)
+    provider.reviews_count
   end
 
   # Extracts specialty tags from photos or falls back to secondary categories

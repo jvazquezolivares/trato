@@ -65,7 +65,7 @@ class DirectoryService
 
     @providers = Provider
       .where(id: paginated_ids)
-      .includes(:provider_categories, :photos, :reviews, :jobs)
+      .includes(:provider_categories, :photos, :reviews)
       .order(Arel.sql("ARRAY_POSITION(ARRAY[#{paginated_ids.join(',')}], providers.id)"))
   end
 

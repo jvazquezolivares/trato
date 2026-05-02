@@ -134,7 +134,7 @@ class AdminService
   # Returns paginated list of providers with eager-loaded associations.
   # Supports filtering by status (active/inactive), city, and search query.
   def self.providers_list(params = {})
-    scope = Provider.includes(:provider_categories, :reviews, :conversations)
+    scope = Provider.includes(:provider_categories, :reviews)
 
     scope = filter_providers_by_status(scope, params[:status])
     scope = filter_providers_by_city(scope, params[:city])
@@ -146,9 +146,7 @@ class AdminService
   # Returns detailed data for a single provider including financial summary,
   # recent conversations, and recent jobs.
   def self.provider_detail(provider_id)
-    provider = Provider.includes(
-      :provider_categories, :reviews, :photos, :conversations
-    ).find_by(id: provider_id)
+    provider = Provider.includes(:provider_categories, :reviews, :photos).find_by(id: provider_id)
 
     return nil unless provider
 
@@ -165,7 +163,7 @@ class AdminService
   # Returns paginated list of conversations with eager-loaded associations.
   # Supports filtering by provider, stage, and date range.
   def self.conversations_list(params = {})
-    scope = Conversation.includes(:provider, :client, :messages)
+    scope = Conversation.includes(:provider, :messages)
 
     scope = scope.where(provider_id: params[:provider_id]) if params[:provider_id].present?
     scope = scope.where(stage: params[:stage]) if params[:stage].present?
@@ -183,8 +181,7 @@ class AdminService
 
   # Returns full message history for a conversation.
   def self.conversation_detail(conversation_id)
-    conversation = Conversation.includes(:provider, :client, :messages)
-                               .find_by(id: conversation_id)
+    conversation = Conversation.includes(:provider, :client).find_by(id: conversation_id)
 
     return nil unless conversation
 
