@@ -4,10 +4,9 @@
 # **Validates: Requirements 2.4, 2.5**
 #
 # For any Provider record with a given short_uuid, the computed method
-# assistant_whatsapp_link SHALL always return a URL matching the pattern
-# https://wa.me/{TRATO_WHATSAPP_NUMBER}?text={short_uuid}, where short_uuid
-# is an 8-character hexadecimal string and TRATO_WHATSAPP_NUMBER is the
-# shared WhatsApp Business number from the environment.
+# assistant_whatsapp_link SHALL always return a URL with a personalized Spanish message
+# containing the provider name and short_uuid embedded in the text parameter.
+# The short_uuid must be extractable via regex pattern /\b[0-9a-f]{8}\b/i for routing purposes.
 
 require "rails_helper"
 
@@ -32,35 +31,46 @@ RSpec.describe Provider, "P4: assistant_whatsapp_link format", type: :property d
         expect(link).to include(provider.short_uuid),
           "Expected link to contain short_uuid '#{provider.short_uuid}' but got '#{link}'"
 
-        # 4. Link must match the full pattern: https://wa.me/{number}?text={uuid}
-        expected_pattern = %r{\Ahttps://wa\.me/#{Regexp.escape(whatsapp_number)}\?text=[a-f0-9]{8}\z}
-        expect(link).to match(expected_pattern),
-          "Expected link to match pattern but got '#{link}'"
+        # 4. Link must have a text parameter
+        expect(link).to include("?text="),
+          "Expected link to have text parameter but got '#{link}'"
       end
     end
   end
 
-  context "when short_uuid is always 8 hex characters" do
+  context "when short_uuid is embedded in personalized message" do
     PropertyTestHelper::MEMORY_ITERATIONS.times do |iteration|
-      it "extracts and validates the short_uuid from the link (iteration #{iteration + 1})" do
+      it "embeds the short_uuid and provider name in a URL-encoded Spanish message (iteration #{iteration + 1})" do
         provider = build_stubbed(:provider)
 
         link = provider.assistant_whatsapp_link
 
-        # Extract the short_uuid from the link (after ?text=)
-        match = link.match(%r{\?text=([a-f0-9]{8})\z})
+        # Decode the URL to check the message
+        uri = URI.parse(link)
+        params = URI.decode_www_form(uri.query)
+        text_param = params.find { |k, _v| k == "text" }&.last
+
+        expect(text_param).not_to be_nil,
+          "Expected text parameter in link '#{link}'"
+
+        # The message should contain the short_uuid
+        expect(text_param).to include(provider.short_uuid),
+          "Expected message to contain short_uuid '#{provider.short_uuid}' but got '#{text_param}'"
+
+        # The message should contain the provider name
+        expect(text_param).to include(provider.name),
+          "Expected message to contain provider name '#{provider.name}' but got '#{text_param}'"
+
+        # The message should be in Spanish and instructional
+        expect(text_param).to match(/Envía este mensaje/i),
+          "Expected Spanish instruction in message but got '#{text_param}'"
+
+        # The short_uuid should be extractable via regex
+        match = text_param.match(/\b[0-9a-f]{8}\b/i)
         expect(match).not_to be_nil,
-          "Expected to extract short_uuid from link '#{link}'"
-
-        extracted_uuid = match[1]
-
-        # Verify it matches the provider's short_uuid
-        expect(extracted_uuid).to eq(provider.short_uuid),
-          "Expected extracted UUID '#{extracted_uuid}' to match provider.short_uuid '#{provider.short_uuid}'"
-
-        # Verify it's exactly 8 hex characters
-        expect(extracted_uuid).to match(/\A[a-f0-9]{8}\z/),
-          "Expected UUID to be 8 hex characters but got '#{extracted_uuid}'"
+          "Expected to extract short_uuid via regex from '#{text_param}'"
+        expect(match[0].downcase).to eq(provider.short_uuid),
+          "Expected extracted UUID '#{match[0]}' to match provider.short_uuid '#{provider.short_uuid}'"
       end
     end
   end
@@ -102,6 +112,11 @@ RSpec.describe Provider, "P4: assistant_whatsapp_link format", type: :property d
           "Expected exactly 1 query parameter but got #{params.length} in '#{link}'"
         expect(params[0][0]).to eq("text"),
           "Expected query parameter 'text' but got '#{params[0][0]}'"
+
+        # 4. The text parameter must be properly URL-encoded
+        text_value = params[0][1]
+        expect(text_value).not_to be_empty,
+          "Expected non-empty text parameter"
       end
     end
   end

@@ -14,12 +14,27 @@ RSpec.describe Provider, type: :model do
       expect(link).to include(provider.short_uuid)
     end
 
-    it "includes the short_uuid as a query parameter" do
+    it "includes a personalized Spanish message with provider name and short_uuid" do
+      provider = build_stubbed(:provider, name: "Miguel García", short_uuid: "a3f8c2d1")
+
+      link = provider.assistant_whatsapp_link
+
+      # The link should contain URL-encoded Spanish text with provider name and short_uuid
+      expect(link).to include("text=Env")
+      expect(link).to include("Miguel")
+      expect(link).to include("a3f8c2d1")
+      # Parentheses are URL-encoded as %28 and %29
+      expect(link).to match(/%28a3f8c2d1%29/)
+    end
+
+    it "URL-encodes the message properly" do
       provider = build_stubbed(:provider)
 
       link = provider.assistant_whatsapp_link
 
-      expect(link).to match(%r{\?text=#{provider.short_uuid}\z})
+      # Spaces should be encoded as %20 or +
+      # Special characters should be encoded
+      expect(link).to match(/%20|%2C|\+/)
     end
 
     it "is a computed method (not a stored column)" do

@@ -274,6 +274,74 @@ RSpec.describe ConversationHandler, type: :service do
         )
       end
     end
+
+    context "when body contains short_uuid embedded in a natural message" do
+      let(:provider) { build_stubbed(:provider, short_uuid: "a3f8c2d1") }
+      let(:unknown_phone) { "5212222222222" }
+
+      before do
+        allow(Provider).to receive(:find_by).with(phone: unknown_phone).and_return(nil)
+        allow(Provider).to receive(:find_by).with(short_uuid: "a3f8c2d1").and_return(provider)
+        allow(redis_mock).to receive(:get).and_return(nil)
+      end
+
+      it "extracts short_uuid from the natural message format" do
+        ConversationHandler.call(from: unknown_phone, body: "Hola, me pasaron este contacto (a3f8c2d1)", media_url: nil)
+
+        expect(ClientAssistant).to have_received(:call).with(
+          provider: provider, from: unknown_phone, body: "Hola, me pasaron este contacto (a3f8c2d1)"
+        )
+      end
+
+      it "extracts short_uuid from various message formats" do
+        messages = [
+          "Hola, me pasaron este contacto (a3f8c2d1)",
+          "Busco información sobre sus servicios a3f8c2d1",
+          "a3f8c2d1 - me recomendaron este número",
+          "Contacto: a3f8c2d1"
+        ]
+
+        messages.each do |message|
+          ConversationHandler.call(from: unknown_phone, body: message, media_url: nil)
+        end
+
+        expect(ClientAssistant).to have_received(:call).exactly(messages.length).times
+      end
+
+      it "is case-insensitive when matching short_uuid" do
+        ConversationHandler.call(from: unknown_phone, body: "Hola (A3F8C2D1)", media_url: nil)
+
+        expect(ClientAssistant).to have_received(:call).with(
+          provider: provider, from: unknown_phone, body: "Hola (A3F8C2D1)"
+        )
+      end
+    end
+
+    context "when body contains text but no valid short_uuid" do
+      let(:unknown_phone) { "5212222222222" }
+
+      before do
+        allow(Provider).to receive(:find_by).and_return(nil)
+        allow(redis_mock).to receive(:get).and_return(nil)
+        allow(redis_mock).to receive(:setex).and_return("OK")
+      end
+
+      it "treats as unknown sender when no 8-char hex pattern exists" do
+        ConversationHandler.call(from: unknown_phone, body: "Hola, busco un fontanero", media_url: nil)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: unknown_phone,
+          message: ConversationHandler::WELCOME_MESSAGE
+        )
+      end
+
+      it "does not match partial hex strings" do
+        ConversationHandler.call(from: unknown_phone, body: "abc123", media_url: nil)
+
+        expect(ClientAssistant).not_to have_received(:call)
+        expect(WhatsAppService).to have_received(:send_message)
+      end
+    end
   end
 
   describe "constants" do

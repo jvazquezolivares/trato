@@ -550,7 +550,7 @@ RSpec.describe OnboardingService do
         name: "Miguel García",
         short_uuid: "a3f8c2d1",
         slug: "fontaneros-en-veracruz/miguel-garcia-fontanero-a3f8c2d1",
-        assistant_whatsapp_link: "https://wa.me/522221234567?text=a3f8c2d1",
+        assistant_whatsapp_link: a_string_matching(/Env.*Miguel.*a3f8c2d1/),
         provider_categories: provider_categories_relation,
         "slug=" => nil,
         save!: true,

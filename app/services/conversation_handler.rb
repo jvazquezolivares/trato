@@ -48,7 +48,13 @@ class ConversationHandler
   def self.provider_by_short_uuid(body)
     return nil if body.blank?
 
-    @_provider_by_uuid = Provider.find_by(short_uuid: body.strip)
+    # Extract 8-character hex short_uuid from anywhere in the message body
+    # Matches patterns like: "Hola, me pasaron este contacto (a3f8c2d1)"
+    match = body.match(/\b[0-9a-f]{8}\b/i)
+    return nil unless match
+
+    short_uuid = match[0].downcase
+    @_provider_by_uuid = Provider.find_by(short_uuid: short_uuid)
   end
 
   def self.route_to_provider(from, body, media_url)
