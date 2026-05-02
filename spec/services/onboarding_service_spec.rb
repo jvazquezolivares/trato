@@ -109,6 +109,15 @@ RSpec.describe OnboardingService do
         end
       end
 
+      it "cleans common prefixes from categories" do
+        described_class.call(from: phone, body: "Soy fontanero, me dedico a electricista")
+
+        expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["categories"]).to eq(%w[fontanero electricista])
+        end
+      end
+
       it "asks for city after categories" do
         described_class.call(from: phone, body: "fontanero")
 

@@ -480,7 +480,14 @@ class OnboardingService
     # Split by common separators: commas, "y", "e", newlines
     text.split(/[,\n]|(?:\s+y\s+)|(?:\s+e\s+)/)
         .map(&:strip)
+        .map { |cat| clean_category_name(cat) }
         .reject(&:blank?)
+  end
+
+  def clean_category_name(text)
+    # Remove common prefixes like "Soy", "Me dedico a", "Trabajo como", etc.
+    cleaned = text.gsub(/\A(soy|me dedico a|trabajo como|hago de|soy un|soy una)\s+/i, "")
+    cleaned.strip
   end
 
   def extract_price(text)
