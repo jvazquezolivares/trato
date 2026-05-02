@@ -99,8 +99,11 @@ class JobRegistrationService
     %w[paid partial].include?(job.status)
   end
 
+  # Schedules the review request at 11am CDMX on the first eligible day
+  # after a 24-hour window from now (job completion time).
   def enqueue_review_request(job)
-    ReviewRequestJob.perform_later(job.id)
+    delivery_time = ReviewRequestJob.calculate_delivery_time(Time.current)
+    ReviewRequestJob.set(wait_until: delivery_time).perform_later(job.id)
   end
 
   # --- Expense registration (case 5) ---

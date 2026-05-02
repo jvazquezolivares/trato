@@ -12,8 +12,13 @@ RSpec.describe JobRegistrationService do
     allow(ClientLookupService).to receive(:call).and_return(client)
     allow(Job).to receive(:create!).and_return(job_double)
     allow(Transaction).to receive(:create!).and_return(true)
-    allow(ReviewRequestJob).to receive(:perform_later).and_return(true)
     allow(provider).to receive(:jobs).and_return(provider_jobs)
+
+    # ReviewRequestJob now uses set(wait_until:).perform_later
+    configured_job = double("configured_job")
+    allow(ReviewRequestJob).to receive(:set).and_return(configured_job)
+    allow(configured_job).to receive(:perform_later).and_return(true)
+    allow(ReviewRequestJob).to receive(:calculate_delivery_time).and_return(Time.current + 1.day)
   end
 
   describe "Case 1: Known client, full payment" do
@@ -69,10 +74,10 @@ RSpec.describe JobRegistrationService do
       )
     end
 
-    it "enqueues ReviewRequestJob" do
+    it "enqueues ReviewRequestJob with scheduled delivery time" do
       described_class.call(provider: provider, action: "register_job", action_data: action_data)
 
-      expect(ReviewRequestJob).to have_received(:perform_later).with(8)
+      expect(ReviewRequestJob).to have_received(:set).with(wait_until: a_kind_of(ActiveSupport::TimeWithZone))
     end
   end
 
@@ -143,7 +148,7 @@ RSpec.describe JobRegistrationService do
     it "enqueues ReviewRequestJob for partial payment" do
       described_class.call(provider: provider, action: "register_job", action_data: action_data)
 
-      expect(ReviewRequestJob).to have_received(:perform_later).with(9)
+      expect(ReviewRequestJob).to have_received(:set).with(wait_until: a_kind_of(ActiveSupport::TimeWithZone))
     end
   end
 
@@ -182,7 +187,7 @@ RSpec.describe JobRegistrationService do
     it "does not enqueue ReviewRequestJob for pending jobs" do
       described_class.call(provider: provider, action: "register_job", action_data: action_data)
 
-      expect(ReviewRequestJob).not_to have_received(:perform_later)
+      expect(ReviewRequestJob).not_to have_received(:set)
     end
   end
 

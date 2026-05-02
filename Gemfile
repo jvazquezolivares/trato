@@ -29,6 +29,7 @@ gem "solid_cable"
 
 # Background jobs with Sidekiq + Redis
 gem "sidekiq"
+gem "sidekiq-cron"
 gem "redis"
 
 # Claude AI API client

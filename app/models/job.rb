@@ -9,6 +9,7 @@
 #  description         :text
 #  paid_amount         :decimal      default(0.0)
 #  payment_method      :string         cash | transfer | pending
+#  review_attempts     :integer      default(0)
 #  review_requested_at :datetime
 #  review_sent         :boolean      default(false)
 #  service_date        :date
