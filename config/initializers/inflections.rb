@@ -18,6 +18,7 @@
 # Zeitwerk inflections for custom acronyms
 Rails.autoloaders.each do |autoloader|
   autoloader.inflector.inflect(
-    "whatsapp_service" => "WhatsAppService"
+    "whatsapp_service" => "WhatsAppService",
+    "whatsapp" => "WhatsApp"
   )
 end
