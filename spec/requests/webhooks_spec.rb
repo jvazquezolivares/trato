@@ -49,6 +49,9 @@ RSpec.describe "Webhooks", type: :request do
   end
 
   describe "POST /webhooks/whatsapp (receive)" do
+    let(:provider_phone_number_id) { "111111111111" }
+    let(:client_phone_number_id) { "222222222222" }
+
     let(:meta_payload) do
       {
         entry: [ {
@@ -67,8 +70,25 @@ RSpec.describe "Webhooks", type: :request do
     end
 
     before do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("WHATSAPP_PROVIDER_PHONE_NUMBER_ID").and_return(provider_phone_number_id)
+      allow(ENV).to receive(:[]).with("WHATSAPP_CLIENT_PHONE_NUMBER_ID").and_return(client_phone_number_id)
+
       # Prevent actual job execution — we only verify it gets enqueued
       allow(ProcessWhatsappMessageJob).to receive(:perform_later)
+
+      # Stub the new jobs to prevent NameError until they are created in Task 7
+      provider_job_class = Class.new do
+        def self.perform_later(*_args); end
+      end
+      client_job_class = Class.new do
+        def self.perform_later(*_args); end
+      end
+
+      stub_const("ProviderMessageJob", provider_job_class)
+      stub_const("ClientMessageJob", client_job_class)
+      allow(ProviderMessageJob).to receive(:perform_later)
+      allow(ClientMessageJob).to receive(:perform_later)
     end
 
     it "always returns HTTP 200" do
@@ -77,14 +97,99 @@ RSpec.describe "Webhooks", type: :request do
       expect(response).to have_http_status(:ok)
     end
 
-    it "enqueues ProcessWhatsappMessageJob with extracted message data" do
-      post "/webhooks/whatsapp", params: meta_payload, as: :json
+    context "when phone_number_id matches provider number" do
+      let(:provider_payload) do
+        {
+          entry: [ {
+            changes: [ {
+              value: {
+                metadata: { phone_number_id: provider_phone_number_id },
+                messages: [ {
+                  from: "5212211234567",
+                  text: { body: "Hola desde provider" }
+                } ]
+              }
+            } ]
+          } ]
+        }
+      end
 
-      expect(ProcessWhatsappMessageJob).to have_received(:perform_later).with(
-        "5212211234567",
-        "Hola",
-        "https://example.com/photo.jpg"
-      )
+      it "enqueues ProviderMessageJob" do
+        post "/webhooks/whatsapp", params: provider_payload, as: :json
+
+        expect(ProviderMessageJob).to have_received(:perform_later).with(
+          "5212211234567",
+          "Hola desde provider",
+          nil
+        )
+      end
+    end
+
+    context "when phone_number_id matches client number" do
+      let(:client_payload) do
+        {
+          entry: [ {
+            changes: [ {
+              value: {
+                metadata: { phone_number_id: client_phone_number_id },
+                messages: [ {
+                  from: "5212219876543",
+                  text: { body: "Hola desde client" }
+                } ]
+              }
+            } ]
+          } ]
+        }
+      end
+
+      it "enqueues ClientMessageJob" do
+        post "/webhooks/whatsapp", params: client_payload, as: :json
+
+        expect(ClientMessageJob).to have_received(:perform_later).with(
+          "5212219876543",
+          "Hola desde client",
+          nil
+        )
+      end
+    end
+
+    context "when phone_number_id is unknown" do
+      let(:unknown_payload) do
+        {
+          entry: [ {
+            changes: [ {
+              value: {
+                metadata: { phone_number_id: "999999999999" },
+                messages: [ {
+                  from: "5212211111111",
+                  text: { body: "Message from unknown number" }
+                } ]
+              }
+            } ]
+          } ]
+        }
+      end
+
+      it "logs a warning with phone_number_id and sender details" do
+        allow(Rails.logger).to receive(:warn)
+
+        post "/webhooks/whatsapp", params: unknown_payload, as: :json
+
+        expect(Rails.logger).to have_received(:warn).with(
+          a_string_matching(/Unknown phone_number_id received: 999999999999/)
+            .and(matching(/Sender: 5212211111111/))
+            .and(matching(/Message preview: Message from unknown number/))
+            .and(matching(/Timestamp:/))
+        )
+      end
+
+      it "returns HTTP 200 without enqueuing any job" do
+        post "/webhooks/whatsapp", params: unknown_payload, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(ProviderMessageJob).not_to have_received(:perform_later)
+        expect(ClientMessageJob).not_to have_received(:perform_later)
+      end
     end
 
     context "when payload has no messages" do
@@ -114,7 +219,7 @@ RSpec.describe "Webhooks", type: :request do
           entry: [ {
             changes: [ {
               value: {
-                metadata: { phone_number_id: "123456" },
+                metadata: { phone_number_id: provider_phone_number_id },
                 messages: [ {
                   from: "5212219876543",
                   text: { body: "a3f8c2d1" }
@@ -128,7 +233,7 @@ RSpec.describe "Webhooks", type: :request do
       it "enqueues job with nil media_url" do
         post "/webhooks/whatsapp", params: text_only_payload, as: :json
 
-        expect(ProcessWhatsappMessageJob).to have_received(:perform_later).with(
+        expect(ProviderMessageJob).to have_received(:perform_later).with(
           "5212219876543",
           "a3f8c2d1",
           nil
