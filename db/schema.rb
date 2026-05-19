@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_02_180850) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_19_163606) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -167,6 +167,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_02_180850) do
     t.text "bio"
     t.string "city"
     t.datetime "created_at", null: false
+    t.string "decline_reason"
     t.string "email"
     t.string "facebook_page_url"
     t.string "facebook_token"
@@ -180,6 +181,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_02_180850) do
     t.string "short_uuid"
     t.string "slug"
     t.datetime "updated_at", null: false
+    t.integer "years_experience"
     t.index ["city", "active"], name: "index_providers_on_city_and_active"
     t.index ["phone"], name: "index_providers_on_phone", unique: true
     t.index ["short_uuid"], name: "index_providers_on_short_uuid", unique: true
