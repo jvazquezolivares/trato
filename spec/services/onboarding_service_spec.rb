@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe OnboardingService do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:phone) { "5212211234567" }
   let(:redis_mock) { instance_double(Redis) }
 
@@ -43,6 +45,259 @@ RSpec.describe OnboardingService do
           86_400,
           a_string_matching(/"stage":"collecting_name"/)
         )
+      end
+    end
+
+    context "when stage is onboarding_welcome and user declines registration" do
+      before do
+        allow(redis_mock).to receive(:get)
+          .with("onboarding_state:#{phone}")
+          .and_return(redis_state(stage: "onboarding_welcome"))
+        allow(redis_mock).to receive(:setex).and_return("OK")
+        allow(WhatsAppService).to receive(:send_list_message).and_return(true)
+      end
+
+      it "sends decline reasons List Message when user says 'mejor después'" do
+        described_class.call(from: phone, body: "Mejor después")
+
+        expect(WhatsAppService).to have_received(:send_list_message).with(
+          to: phone,
+          payload: a_hash_including(
+            type: "list",
+            header: a_hash_including(text: "¿Por qué no por ahora?")
+          )
+        )
+      end
+
+      it "sends decline reasons List Message when user says 'no'" do
+        described_class.call(from: phone, body: "no")
+
+        expect(WhatsAppService).to have_received(:send_list_message)
+      end
+
+      it "sends decline reasons List Message when user says 'ahora no'" do
+        described_class.call(from: phone, body: "ahora no")
+
+        expect(WhatsAppService).to have_received(:send_list_message)
+      end
+
+      it "sends decline reasons List Message when user says 'más tarde'" do
+        described_class.call(from: phone, body: "más tarde")
+
+        expect(WhatsAppService).to have_received(:send_list_message)
+      end
+
+      it "transitions to collecting_decline_reason stage" do
+        described_class.call(from: phone, body: "Mejor después")
+
+        expect(redis_mock).to have_received(:setex).with(
+          "onboarding_state:#{phone}",
+          86_400,
+          a_string_matching(/"stage":"collecting_decline_reason"/)
+        )
+      end
+    end
+
+    context "when collecting decline reason" do
+      before do
+        allow(redis_mock).to receive(:get)
+          .with("onboarding_state:#{phone}")
+          .and_return(redis_state(stage: "collecting_decline_reason"))
+        allow(redis_mock).to receive(:setex).and_return("OK")
+        allow(redis_mock).to receive(:del).and_return(1)
+      end
+
+      after do
+        travel_back
+      end
+
+      it "stores decline reason in database" do
+        travel_to Time.current do
+          expect do
+            described_class.call(from: phone, body: "busy")
+          end.to change(OnboardingDecline, :count).by(1)
+
+          decline = OnboardingDecline.last
+          expect(decline.phone).to eq(phone)
+          expect(decline.reason).to eq("busy")
+          expect(decline.context).to include(
+            "stage" => "onboarding",
+            "declined_at" => Time.current.iso8601
+          )
+        end
+      end
+
+      it "stores decline reason in Redis data" do
+        described_class.call(from: phone, body: "dont_understand")
+
+        expect(redis_mock).to have_received(:setex).with(
+          "onboarding_state:#{phone}",
+          86_400,
+          a_string_matching(/"decline_reason":"dont_understand"/)
+        ).at_least(:once)
+      end
+
+      it "sends warm closing message" do
+        described_class.call(from: phone, body: "busy")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/Gracias por contarme.*Cuando quieras crear tu cuenta/m)
+        )
+      end
+
+      it "sends warm closing message with correct emoji and tone" do
+        described_class.call(from: phone, body: "busy")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/😊/)
+        )
+      end
+
+      it "includes Elisa signature in closing message" do
+        described_class.call(from: phone, body: "busy")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/— Elisa/)
+        )
+      end
+
+      it "sets conversation stage to closed" do
+        described_class.call(from: phone, body: "busy")
+
+        expect(redis_mock).to have_received(:setex).with(
+          "onboarding_state:#{phone}",
+          86_400,
+          a_string_matching(/"stage":"closed"/)
+        )
+      end
+
+      it "prompts user to select from list when body is blank" do
+        described_class.call(from: phone, body: "")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: "Por favor selecciona una razón de la lista."
+        )
+      end
+
+      it "does not send closing message when body is blank" do
+        described_class.call(from: phone, body: "")
+
+        expect(WhatsAppService).not_to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/Gracias por contarme/)
+        )
+      end
+
+      it "does not create OnboardingDecline record when body is blank" do
+        expect do
+          described_class.call(from: phone, body: "")
+        end.not_to change(OnboardingDecline, :count)
+      end
+
+      it "stores all decline reason options correctly" do
+        decline_reasons = %w[busy dont_understand not_worth_it uncomfortable_whatsapp enough_clients other]
+
+        decline_reasons.each do |reason|
+          expect do
+            described_class.call(from: phone, body: reason)
+          end.to change(OnboardingDecline, :count).by(1)
+
+          decline = OnboardingDecline.last
+          expect(decline.reason).to eq(reason)
+        end
+      end
+
+      # Test each decline reason individually to ensure complete flow
+      context "when testing each decline reason option" do
+        DECLINE_REASONS = [
+          { id: "busy", title: "Estoy muy ocupado" },
+          { id: "dont_understand", title: "No entiendo qué es" },
+          { id: "not_worth_it", title: "No sé si vale pena" },
+          { id: "uncomfortable_whatsapp", title: "No me gusta WhatsApp" },
+          { id: "enough_clients", title: "Tengo suficientes" },
+          { id: "other", title: "Otro motivo" }
+        ].freeze
+
+        DECLINE_REASONS.each do |reason|
+          context "when provider selects '#{reason[:title]}' (#{reason[:id]})" do
+            it "stores the decline reason in database" do
+              expect do
+                described_class.call(from: phone, body: reason[:id])
+              end.to change(OnboardingDecline, :count).by(1)
+
+              decline = OnboardingDecline.last
+              expect(decline.phone).to eq(phone)
+              expect(decline.reason).to eq(reason[:id])
+            end
+
+            it "sends warm closing message with correct content" do
+              described_class.call(from: phone, body: reason[:id])
+
+              expect(WhatsAppService).to have_received(:send_message).with(
+                to: phone,
+                message: "¡Gracias por contarme! 😊 Cuando quieras crear tu cuenta, escríbeme aquí y con gusto te ayudo. ¡Que te vaya muy bien! — Elisa"
+              )
+            end
+
+            it "sets conversation stage to closed" do
+              described_class.call(from: phone, body: reason[:id])
+
+              expect(redis_mock).to have_received(:setex).with(
+                "onboarding_state:#{phone}",
+                86_400,
+                a_string_matching(/"stage":"closed"/)
+              )
+            end
+
+            it "stores decline reason in Redis data before closing" do
+              described_class.call(from: phone, body: reason[:id])
+
+              expect(redis_mock).to have_received(:setex).with(
+                "onboarding_state:#{phone}",
+                86_400,
+                a_string_matching(/"decline_reason":"#{reason[:id]}"/)
+              ).at_least(:once)
+            end
+          end
+        end
+      end
+
+      it "stores context with correct stage in database" do
+        described_class.call(from: phone, body: "busy")
+
+        decline = OnboardingDecline.last
+        expect(decline.context["stage"]).to eq("onboarding")
+      end
+
+      it "stores timestamp in ISO8601 format" do
+        travel_to Time.current do
+          described_class.call(from: phone, body: "busy")
+
+          decline = OnboardingDecline.last
+          expect(decline.context["declined_at"]).to eq(Time.current.iso8601)
+        end
+      end
+
+      it "maintains Redis state until closed stage is set" do
+        described_class.call(from: phone, body: "busy")
+
+        # Redis state should be updated to closed, not deleted yet
+        expect(redis_mock).to have_received(:setex).with(
+          "onboarding_state:#{phone}",
+          86_400,
+          a_string_matching(/"stage":"closed"/)
+        )
+      end
+
+      it "sends only one message when decline reason is selected" do
+        described_class.call(from: phone, body: "busy")
+
+        # Should send exactly one message (the closing message)
+        expect(WhatsAppService).to have_received(:send_message).once
       end
     end
 
