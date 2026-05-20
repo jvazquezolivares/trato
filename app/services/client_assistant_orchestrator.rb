@@ -11,13 +11,32 @@ class ClientAssistantOrchestrator
   end
 
   def self.call_search_mode(from:, body:)
-    Assistants::ProviderSearchService.call(from: from, body: body)
+    new_search_mode(from: from, body: body).process_search_mode
+  end
+
+  def self.new_search_mode(from:, body:)
+    new(provider: nil, from: from, body: body)
   end
 
   def initialize(provider:, from:, body:)
     @provider = provider
     @from = from
     @body = body
+  end
+
+  # Process messages from client number without short_uuid (C2A Region-Based Discovery)
+  # This handles the new discovery flow where clients message the client number directly
+  def process_search_mode
+    # Detect state from phone prefix
+    detected_state = ZonesService.detect_state_from_prefix(@from)
+
+    if detected_state.present?
+      # C2A flow: Region detected, ask for confirmation
+      handle_region_detected(detected_state)
+    else
+      # Fallback to existing search mode if no region detected
+      Assistants::ProviderSearchService.call(from: @from, body: @body)
+    end
   end
 
   def process
@@ -231,5 +250,47 @@ class ClientAssistantOrchestrator
       response: response,
       inbound_body: @body
     )
+  end
+
+  # --- C2A Region-Based Discovery ---
+
+  # Handle region detection and send confirmation message
+  # @param detected_state [String] The detected state name (e.g., "Veracruz")
+  def handle_region_detected(detected_state)
+    greeting_message = "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de #{detected_state}. " \
+                       "¿Buscas un técnico en esta región?"
+
+    # Send greeting with Quick Reply Buttons
+    WhatsAppService.send_message_with_buttons(
+      to: @from,
+      message: greeting_message,
+      buttons: [
+        { id: "region_yes_#{detected_state}", title: "Sí, en #{detected_state}" },
+        { id: "region_no", title: "No, en otro lugar" }
+      ]
+    )
+
+    # Store detected region in conversation context (Redis for now, since no provider yet)
+    store_search_context(detected_state: detected_state, stage: "region_confirmation")
+  end
+
+  # Store search context in Redis for stateless client discovery flow
+  # @param context_data [Hash] Context data to store
+  def store_search_context(**context_data)
+    redis_key = "client_search:#{@from}"
+    REDIS.setex(redis_key, 86_400, context_data.to_json) # 24 hour TTL
+  end
+
+  # Retrieve search context from Redis
+  # @return [Hash, nil] The stored context data or nil if not found
+  def get_search_context
+    redis_key = "client_search:#{@from}"
+    data = REDIS.get(redis_key)
+    return nil if data.blank?
+
+    JSON.parse(data, symbolize_names: true)
+  rescue JSON::ParserError => e
+    Rails.logger.error("[ClientAssistantOrchestrator] Failed to parse search context: #{e.message}")
+    nil
   end
 end

@@ -132,4 +132,228 @@ RSpec.describe WhatsAppService, type: :service do
       expect(Rails.logger).to have_received(:error).with(/Failed to send list message/)
     end
   end
+
+  describe ".send_message_with_buttons" do
+    let(:message) { "¿Buscas un técnico en esta región?" }
+    let(:buttons) do
+      [
+        { id: "region_yes_Veracruz", title: "Sí, en Veracruz" },
+        { id: "region_no", title: "No, en otro lugar" }
+      ]
+    end
+
+    it "sends an interactive button message to the Meta Cloud API" do
+      stub = stub_request(:post, api_url)
+        .with(
+          headers: {
+            "Authorization" => "Bearer #{access_token}",
+            "Content-Type" => "application/json"
+          },
+          body: {
+            messaging_product: "whatsapp",
+            to: "5212211234567",
+            type: "interactive",
+            interactive: {
+              type: "button",
+              body: {
+                text: message
+              },
+              action: {
+                buttons: [
+                  {
+                    type: "reply",
+                    reply: {
+                      id: "region_yes_Veracruz",
+                      title: "Sí, en Veracruz"
+                    }
+                  },
+                  {
+                    type: "reply",
+                    reply: {
+                      id: "region_no",
+                      title: "No, en otro lugar"
+                    }
+                  }
+                ]
+              }
+            }
+          }.to_json
+        )
+        .to_return(status: 200, body: { messages: [ { id: "wamid.789" } ] }.to_json)
+
+      described_class.send_message_with_buttons(
+        to: "5212211234567",
+        message: message,
+        buttons: buttons
+      )
+
+      expect(stub).to have_been_requested
+    end
+
+    it "logs an error when the API returns a non-success status" do
+      stub_request(:post, api_url).to_return(status: 400, body: "Bad Request")
+
+      allow(Rails.logger).to receive(:error)
+
+      described_class.send_message_with_buttons(
+        to: "5212211234567",
+        message: message,
+        buttons: buttons
+      )
+
+      expect(Rails.logger).to have_received(:error).with(/Failed to send message with buttons/)
+    end
+
+    it "formats buttons correctly for Meta Cloud API" do
+      stub = stub_request(:post, api_url)
+        .with(
+          headers: {
+            "Authorization" => "Bearer #{access_token}",
+            "Content-Type" => "application/json"
+          },
+          body: {
+            messaging_product: "whatsapp",
+            to: "5212211234567",
+            type: "interactive",
+            interactive: {
+              type: "button",
+              body: {
+                text: message
+              },
+              action: {
+                buttons: [
+                  {
+                    type: "reply",
+                    reply: {
+                      id: "region_yes_Veracruz",
+                      title: "Sí, en Veracruz"
+                    }
+                  },
+                  {
+                    type: "reply",
+                    reply: {
+                      id: "region_no",
+                      title: "No, en otro lugar"
+                    }
+                  }
+                ]
+              }
+            }
+          }.to_json
+        )
+        .to_return(status: 200, body: "{}".to_json)
+
+      described_class.send_message_with_buttons(
+        to: "5212211234567",
+        message: message,
+        buttons: buttons
+      )
+
+      expect(stub).to have_been_requested
+    end
+
+    it "handles single button" do
+      single_button = [ { id: "confirm", title: "Confirmar" } ]
+
+      stub = stub_request(:post, api_url)
+        .with(
+          headers: {
+            "Authorization" => "Bearer #{access_token}",
+            "Content-Type" => "application/json"
+          },
+          body: {
+            messaging_product: "whatsapp",
+            to: "5212211234567",
+            type: "interactive",
+            interactive: {
+              type: "button",
+              body: {
+                text: "¿Confirmas?"
+              },
+              action: {
+                buttons: [
+                  {
+                    type: "reply",
+                    reply: {
+                      id: "confirm",
+                      title: "Confirmar"
+                    }
+                  }
+                ]
+              }
+            }
+          }.to_json
+        )
+        .to_return(status: 200, body: "{}".to_json)
+
+      described_class.send_message_with_buttons(
+        to: "5212211234567",
+        message: "¿Confirmas?",
+        buttons: single_button
+      )
+
+      expect(stub).to have_been_requested
+    end
+
+    it "handles three buttons (max allowed by WhatsApp)" do
+      three_buttons = [
+        { id: "option1", title: "Opción 1" },
+        { id: "option2", title: "Opción 2" },
+        { id: "option3", title: "Opción 3" }
+      ]
+
+      stub = stub_request(:post, api_url)
+        .with(
+          headers: {
+            "Authorization" => "Bearer #{access_token}",
+            "Content-Type" => "application/json"
+          },
+          body: {
+            messaging_product: "whatsapp",
+            to: "5212211234567",
+            type: "interactive",
+            interactive: {
+              type: "button",
+              body: {
+                text: "Elige una opción"
+              },
+              action: {
+                buttons: [
+                  {
+                    type: "reply",
+                    reply: {
+                      id: "option1",
+                      title: "Opción 1"
+                    }
+                  },
+                  {
+                    type: "reply",
+                    reply: {
+                      id: "option2",
+                      title: "Opción 2"
+                    }
+                  },
+                  {
+                    type: "reply",
+                    reply: {
+                      id: "option3",
+                      title: "Opción 3"
+                    }
+                  }
+                ]
+              }
+            }
+          }.to_json
+        )
+        .to_return(status: 200, body: "{}".to_json)
+
+      described_class.send_message_with_buttons(
+        to: "5212211234567",
+        message: "Elige una opción",
+        buttons: three_buttons
+      )
+
+      expect(stub).to have_been_requested
+    end
+  end
 end
