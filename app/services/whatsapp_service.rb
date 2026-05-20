@@ -41,4 +41,37 @@ class WhatsAppService
       sleep(1.5) if index < messages.length - 1
     end
   end
+
+  # Sends an interactive List Message to a WhatsApp recipient.
+  # Used for presenting 4+ options (Quick Reply Buttons limited to 3).
+  #
+  # @param to [String] Recipient phone number
+  # @param payload [Hash] List Message payload from WhatsApp::ListMessageBuilder
+  # @return [HTTParty::Response] API response
+  def self.send_list_message(to:, payload:)
+    url = "#{BASE_URL}/#{ENV['WHATSAPP_PHONE_NUMBER_ID']}/messages"
+
+    response = HTTParty.post(
+      url,
+      headers: {
+        "Authorization" => "Bearer #{ENV['WHATSAPP_ACCESS_TOKEN']}",
+        "Content-Type" => "application/json"
+      },
+      body: {
+        messaging_product: "whatsapp",
+        to: to,
+        type: "interactive",
+        interactive: payload
+      }.to_json
+    )
+
+    unless response.success?
+      Rails.logger.error(
+        "[WhatsAppService] Failed to send list message to #{to}: " \
+        "HTTP #{response.code} — #{response.body}"
+      )
+    end
+
+    response
+  end
 end

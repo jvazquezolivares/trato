@@ -8,6 +8,7 @@
 #
 # State machine stages (stored in Redis as JSON):
 #   onboarding          → initial confirmation
+#   collecting_decline_reason → collect reason when provider declines registration
 #   collecting_name     → ask for name
 #   collecting_categories → ask for service categories
 #   collecting_city     → ask for city
@@ -58,6 +59,8 @@ class OnboardingService
     case stage
     when "onboarding_welcome", "onboarding"
       start_field_collection
+    when "collecting_decline_reason"
+      collect_decline_reason
     when "collecting_name"
       collect_name
     when "collecting_categories"
@@ -133,7 +136,41 @@ class OnboardingService
   # --- Field collection stages ---
 
   def start_field_collection
+    # Detect negative response (decline registration)
+    if negative_response?(@body) || decline_response?(@body)
+      send_decline_reasons_list
+      @state["stage"] = "collecting_decline_reason"
+      save_state
+      return
+    end
+
     advance_to("collecting_name", message: "¡Qué bueno que quieres registrarte! 🎉 ¿Cómo te llamas?")
+  end
+
+  def collect_decline_reason
+    return send_message("Por favor selecciona una razón de la lista.") if @body.blank?
+
+    # Store the decline reason in Redis (temporary)
+    data["decline_reason"] = @body
+    save_state
+
+    # Persist decline reason to database for analytics
+    OnboardingDecline.create!(
+      phone: @from,
+      reason: @body,
+      context: {
+        stage: "onboarding",
+        declined_at: Time.current.iso8601
+      }
+    )
+
+    # Send warm closing message
+    closing_message = "¡Gracias por contarme! 😊 Cuando quieras crear tu cuenta, escríbeme aquí y con gusto te ayudo. ¡Que te vaya muy bien! — Elisa"
+    send_message(closing_message)
+
+    # Mark conversation as closed and clean up Redis
+    @state["stage"] = "closed"
+    save_state
   end
 
   def collect_name
@@ -527,6 +564,41 @@ class OnboardingService
 
     normalized = text.downcase.strip
     %w[no nop nel nah].any? { |word| normalized == word || normalized.start_with?(word) }
+  end
+
+  def negative_response?(text)
+    return false if text.blank?
+
+    normalized = text.downcase.strip
+    %w[no nop nel nah].any? { |word| normalized == word || normalized.start_with?(word) }
+  end
+
+  def decline_response?(text)
+    return false if text.blank?
+
+    normalized = text.downcase.strip
+    decline_phrases = [
+      "mejor después",
+      "mejor despues",
+      "ahora no",
+      "ahorita no",
+      "más tarde",
+      "mas tarde",
+      "luego",
+      "después",
+      "despues",
+      "otro día",
+      "otro dia",
+      "no puedo",
+      "no tengo tiempo"
+    ]
+
+    decline_phrases.any? { |phrase| normalized.include?(phrase) }
+  end
+
+  def send_decline_reasons_list
+    payload = WhatsApp::ListMessageBuilder.build_decline_reasons_list
+    WhatsAppService.send_list_message(to: @from, payload: payload)
   end
 
   def done_response?(text)

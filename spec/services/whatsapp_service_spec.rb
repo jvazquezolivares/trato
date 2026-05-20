@@ -74,4 +74,62 @@ RSpec.describe WhatsAppService, type: :service do
       expect(described_class).not_to have_received(:sleep)
     end
   end
+
+  describe ".send_list_message" do
+    let(:list_payload) do
+      {
+        type: "list",
+        header: {
+          type: "text",
+          text: "¿Por qué no por ahora?"
+        },
+        body: {
+          text: "Me ayudaría saber qué te detiene"
+        },
+        action: {
+          button: "Ver opciones",
+          sections: [
+            {
+              title: "Razón",
+              rows: [
+                { id: "busy", title: "Estoy muy ocupado" },
+                { id: "other", title: "Otro motivo" }
+              ]
+            }
+          ]
+        }
+      }
+    end
+
+    it "sends an interactive List Message to the Meta Cloud API" do
+      stub = stub_request(:post, api_url)
+        .with(
+          headers: {
+            "Authorization" => "Bearer #{access_token}",
+            "Content-Type" => "application/json"
+          },
+          body: {
+            messaging_product: "whatsapp",
+            to: "5212211234567",
+            type: "interactive",
+            interactive: list_payload
+          }.to_json
+        )
+        .to_return(status: 200, body: { messages: [ { id: "wamid.456" } ] }.to_json)
+
+      described_class.send_list_message(to: "5212211234567", payload: list_payload)
+
+      expect(stub).to have_been_requested
+    end
+
+    it "logs an error when the API returns a non-success status" do
+      stub_request(:post, api_url).to_return(status: 400, body: "Bad Request")
+
+      allow(Rails.logger).to receive(:error)
+
+      described_class.send_list_message(to: "5212211234567", payload: list_payload)
+
+      expect(Rails.logger).to have_received(:error).with(/Failed to send list message/)
+    end
+  end
 end
