@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Feature: trato-mvp, Property 1: ConversationHandler routes by phone match
+# Feature: trato-mvp, Property 1: ProviderConversationHandler routes by phone match
 # **Validates: Requirements 1.1**
 #
 # For any Provider record with a given phone number, a message arriving from
@@ -9,7 +9,7 @@
 
 require "rails_helper"
 
-RSpec.describe ConversationHandler, "P1: routing by phone match", type: :property do
+RSpec.describe ProviderConversationHandler, "P1: routing by phone match", type: :property do
   let(:provider) { build_stubbed(:provider) }
 
   before do
@@ -20,7 +20,7 @@ RSpec.describe ConversationHandler, "P1: routing by phone match", type: :propert
 
   context "when phone matches a provider" do
     before do
-      # Stub the includes chain that ConversationHandler uses
+      # Stub the includes chain that ProviderConversationHandler uses
       provider_scope = instance_double(ActiveRecord::Relation)
       allow(Provider).to receive(:includes).and_return(provider_scope)
       allow(provider_scope).to receive(:find_by).with(phone: provider.phone).and_return(provider)
@@ -31,7 +31,7 @@ RSpec.describe ConversationHandler, "P1: routing by phone match", type: :propert
       it "routes to ProviderAssistant regardless of body content (iteration #{iteration + 1})" do
         random_body = [ Faker::Lorem.sentence, SecureRandom.hex(4), nil, "", "1", "2" ].sample
 
-        ConversationHandler.call(from: provider.phone, body: random_body, media_url: nil)
+        ProviderConversationHandler.call(from: provider.phone, body: random_body, media_url: nil)
 
         expect(ProviderAssistant).to have_received(:call).with(
           provider: provider, body: random_body, media_url: nil
@@ -40,13 +40,13 @@ RSpec.describe ConversationHandler, "P1: routing by phone match", type: :propert
     end
 
     it "never routes to ClientAssistant" do
-      ConversationHandler.call(from: provider.phone, body: "anything", media_url: nil)
+      ProviderConversationHandler.call(from: provider.phone, body: "anything", media_url: nil)
 
       expect(ClientAssistant).not_to have_received(:call)
     end
 
     it "never routes to OnboardingService" do
-      ConversationHandler.call(from: provider.phone, body: "anything", media_url: nil)
+      ProviderConversationHandler.call(from: provider.phone, body: "anything", media_url: nil)
 
       expect(OnboardingService).not_to have_received(:call)
     end
@@ -65,7 +65,7 @@ RSpec.describe ConversationHandler, "P1: routing by phone match", type: :propert
     end
 
     it "does not route to ProviderAssistant" do
-      ConversationHandler.call(from: unknown_phone, body: "hola", media_url: nil)
+      ProviderConversationHandler.call(from: unknown_phone, body: "hola", media_url: nil)
 
       expect(ProviderAssistant).not_to have_received(:call)
     end

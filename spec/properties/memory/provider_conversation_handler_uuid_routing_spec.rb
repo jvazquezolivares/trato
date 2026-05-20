@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Feature: trato-mvp, Property 2: ConversationHandler routes by short_uuid match
+# Feature: trato-mvp, Property 2: ProviderConversationHandler routes by short_uuid match
 # **Validates: Requirements 1.2**
 #
 # For any Provider record with a given short_uuid, a message arriving from an
@@ -9,7 +9,7 @@
 
 require "rails_helper"
 
-RSpec.describe ConversationHandler, "P2: routing by short_uuid match", type: :property do
+RSpec.describe ProviderConversationHandler, "P2: routing by short_uuid match", type: :property do
   let(:provider) { build_stubbed(:provider) }
 
   before do
@@ -28,7 +28,7 @@ RSpec.describe ConversationHandler, "P2: routing by short_uuid match", type: :pr
       it "routes to ClientAssistant for that provider (iteration #{iteration + 1})" do
         unknown_phone = "521#{rand(1_000_000_000..9_999_999_999)}"
 
-        ConversationHandler.call(from: unknown_phone, body: provider.short_uuid, media_url: nil)
+        ProviderConversationHandler.call(from: unknown_phone, body: provider.short_uuid, media_url: nil)
 
         expect(ClientAssistant).to have_received(:call).with(
           provider: provider, from: unknown_phone, body: provider.short_uuid
@@ -37,13 +37,13 @@ RSpec.describe ConversationHandler, "P2: routing by short_uuid match", type: :pr
     end
 
     it "never routes to ProviderAssistant" do
-      ConversationHandler.call(from: "521#{rand(1_000_000_000..9_999_999_999)}", body: provider.short_uuid)
+      ProviderConversationHandler.call(from: "521#{rand(1_000_000_000..9_999_999_999)}", body: provider.short_uuid)
 
       expect(ProviderAssistant).not_to have_received(:call)
     end
 
     it "never routes to OnboardingService" do
-      ConversationHandler.call(from: "521#{rand(1_000_000_000..9_999_999_999)}", body: provider.short_uuid)
+      ProviderConversationHandler.call(from: "521#{rand(1_000_000_000..9_999_999_999)}", body: provider.short_uuid)
 
       expect(OnboardingService).not_to have_received(:call)
     end
@@ -62,7 +62,7 @@ RSpec.describe ConversationHandler, "P2: routing by short_uuid match", type: :pr
     end
 
     it "does not route to ClientAssistant" do
-      ConversationHandler.call(from: unknown_phone, body: "not_a_uuid", media_url: nil)
+      ProviderConversationHandler.call(from: unknown_phone, body: "not_a_uuid", media_url: nil)
 
       expect(ClientAssistant).not_to have_received(:call)
     end

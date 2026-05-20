@@ -32,17 +32,17 @@ RSpec.describe "Assistant Link Routing Integration", type: :integration do
       expect(message_text).to include(provider.name)
       expect(message_text).to include("(a3f8c2d1)")
 
-      # Step 3: Client sends this message from their phone
+      # Step 3: Client sends this message from their phone to CLIENT NUMBER
       client_phone = "5219999999999"
 
-      # Mock the ClientAssistant to verify it gets called
-      allow(ClientAssistant).to receive(:call).and_return(nil)
+      # Mock the ClientAssistantOrchestrator to verify it gets called
+      allow(ClientAssistantOrchestrator).to receive(:call).and_return(nil)
 
-      # Simulate the webhook receiving the message
-      ConversationHandler.call(from: client_phone, body: message_text, media_url: nil)
+      # Simulate ClientMessageJob processing the message (client number flow)
+      ClientMessageJob.new.perform(client_phone, message_text, nil)
 
-      # Verify it routes to ClientAssistant with the correct provider
-      expect(ClientAssistant).to have_received(:call).with(
+      # Verify it routes to ClientAssistantOrchestrator with the correct provider
+      expect(ClientAssistantOrchestrator).to have_received(:call).with(
         provider: provider,
         from: client_phone,
         body: message_text
@@ -50,9 +50,8 @@ RSpec.describe "Assistant Link Routing Integration", type: :integration do
     end
 
     it "extracts short_uuid from various natural message formats" do
-      allow(ClientAssistant).to receive(:call).and_return(nil)
+      allow(ClientAssistantOrchestrator).to receive(:call).and_return(nil)
       allow(Provider).to receive(:find_by).and_call_original
-      allow(Provider).to receive(:find_by).with(phone: anything).and_return(nil)
       allow(Provider).to receive(:find_by).with(short_uuid: "a3f8c2d1").and_return(provider)
       client_phone = "5219999999999"
 
@@ -64,33 +63,32 @@ RSpec.describe "Assistant Link Routing Integration", type: :integration do
       ]
 
       natural_messages.each do |message|
-        ConversationHandler.call(from: client_phone, body: message, media_url: nil)
+        # Messages go through ClientMessageJob (client number)
+        ClientMessageJob.new.perform(client_phone, message, nil)
       end
 
-      # All messages should route to ClientAssistant
-      expect(ClientAssistant).to have_received(:call).exactly(natural_messages.length).times
+      # All messages should route to ClientAssistantOrchestrator
+      expect(ClientAssistantOrchestrator).to have_received(:call).exactly(natural_messages.length).times
     end
 
-    it "does not match invalid hex patterns" do
-      allow(ClientAssistant).to receive(:call).and_return(nil)
-      allow(redis_mock).to receive(:setex).and_return("OK")
+    it "does not match invalid hex patterns and triggers search mode" do
+      allow(ClientAssistantOrchestrator).to receive(:call_search_mode).and_return(nil)
       client_phone = "5219999999999"
 
       invalid_messages = [
         "Hola, mi código es abc123",  # Only 6 chars
-        "Busco fontanero 12345678",   # Numbers only, not hex
-        "Contacto: gggggggg",          # Not valid hex
+        "Busco fontanero 123456789",  # 9 chars, too long
+        "Contacto: gggggggg",          # Not valid hex (g is not hex)
         "Hola"                         # No code at all
       ]
 
       invalid_messages.each do |message|
-        ConversationHandler.call(from: client_phone, body: message, media_url: nil)
+        # Messages without valid short_uuid go to search mode (C2A flow)
+        ClientMessageJob.new.perform(client_phone, message, nil)
       end
 
-      # None should route to ClientAssistant
-      expect(ClientAssistant).not_to have_received(:call)
-      # Should send welcome message instead
-      expect(WhatsAppService).to have_received(:send_message).exactly(invalid_messages.length).times
+      # Should trigger search mode for all invalid messages
+      expect(ClientAssistantOrchestrator).to have_received(:call_search_mode).exactly(invalid_messages.length).times
     end
   end
 end

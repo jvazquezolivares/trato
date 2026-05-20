@@ -18,7 +18,7 @@ RSpec.describe OnboardingService do
   end
 
   describe ".call" do
-    context "when stage is onboarding_welcome (first call after user chose '2')" do
+    context "when stage is onboarding_welcome (first response after welcome message)" do
       before do
         allow(redis_mock).to receive(:get)
           .with("onboarding_state:#{phone}")
@@ -27,7 +27,7 @@ RSpec.describe OnboardingService do
       end
 
       it "transitions to collecting_name and asks for name" do
-        described_class.call(from: phone, body: "2")
+        described_class.call(from: phone, body: "Hola")
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: phone,
@@ -36,7 +36,7 @@ RSpec.describe OnboardingService do
       end
 
       it "saves collecting_name stage in Redis" do
-        described_class.call(from: phone, body: "2")
+        described_class.call(from: phone, body: "Hola")
 
         expect(redis_mock).to have_received(:setex).with(
           "onboarding_state:#{phone}",
