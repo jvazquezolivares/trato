@@ -63,13 +63,33 @@ class WebhooksController < ApplicationController
 
   # Extracts sender phone, text body, and image URL from the Meta webhook payload.
   # Uses dig to safely navigate the nested JSON structure.
+  # For interactive messages (List Message selections), extracts the selected option ID.
   def extract_message_data
     entry = params.dig(:entry, 0, :changes, 0, :value)
+    message = entry&.dig(:messages, 0)
+
+    # Check if this is an interactive message response (List Message selection)
+    if message&.dig(:type) == "interactive"
+      interactive_type = message.dig(:interactive, :type)
+
+      # Extract selection ID based on interactive type
+      body = case interactive_type
+             when "list_reply"
+               message.dig(:interactive, :list_reply, :id)
+             when "button_reply"
+               message.dig(:interactive, :button_reply, :id)
+             else
+               nil
+             end
+    else
+      # Regular text message
+      body = message&.dig(:text, :body)
+    end
 
     {
-      from: entry&.dig(:messages, 0, :from),
-      body: entry&.dig(:messages, 0, :text, :body),
-      media_url: entry&.dig(:messages, 0, :image, :url)
+      from: message&.dig(:from),
+      body: body,
+      media_url: message&.dig(:image, :url)
     }
   end
 end

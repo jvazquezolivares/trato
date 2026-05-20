@@ -240,5 +240,75 @@ RSpec.describe "Webhooks", type: :request do
         )
       end
     end
+
+    context "when payload is an interactive List Message response" do
+      let(:list_reply_payload) do
+        {
+          entry: [ {
+            changes: [ {
+              value: {
+                metadata: { phone_number_id: provider_phone_number_id },
+                messages: [ {
+                  from: "5212211234567",
+                  type: "interactive",
+                  interactive: {
+                    type: "list_reply",
+                    list_reply: {
+                      id: "income",
+                      title: "Ver ingresos"
+                    }
+                  }
+                } ]
+              }
+            } ]
+          } ]
+        }
+      end
+
+      it "extracts the selection ID and enqueues job with it as body" do
+        post "/webhooks/whatsapp", params: list_reply_payload, as: :json
+
+        expect(ProviderMessageJob).to have_received(:perform_later).with(
+          "5212211234567",
+          "income",
+          nil
+        )
+      end
+    end
+
+    context "when payload is an interactive Button Reply response" do
+      let(:button_reply_payload) do
+        {
+          entry: [ {
+            changes: [ {
+              value: {
+                metadata: { phone_number_id: client_phone_number_id },
+                messages: [ {
+                  from: "5212219876543",
+                  type: "interactive",
+                  interactive: {
+                    type: "button_reply",
+                    button_reply: {
+                      id: "yes_confirm",
+                      title: "Sí, confirmar"
+                    }
+                  }
+                } ]
+              }
+            } ]
+          } ]
+        }
+      end
+
+      it "extracts the button ID and enqueues job with it as body" do
+        post "/webhooks/whatsapp", params: button_reply_payload, as: :json
+
+        expect(ClientMessageJob).to have_received(:perform_later).with(
+          "5212219876543",
+          "yes_confirm",
+          nil
+        )
+      end
+    end
   end
 end

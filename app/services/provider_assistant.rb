@@ -18,6 +18,12 @@ class ProviderAssistant
 
   def process
     conversation = find_or_create_conversation
+
+    # Check if we're awaiting a financial option selection
+    if conversation.stage == "awaiting_financial_selection"
+      return handle_financial_selection(conversation)
+    end
+
     response = call_claude(conversation)
 
     # Handle nil response from ClaudeService
@@ -104,6 +110,12 @@ class ProviderAssistant
   def handle_financial_query(first_response, conversation)
     action_data = first_response["action_data"] || {}
 
+    # Check if the query is ambiguous (no date range specified)
+    # If ambiguous, send List Message for clarification
+    if ambiguous_financial_query?(action_data)
+      return send_financial_options_list(conversation)
+    end
+
     financial_data = Assistants::FinancialQueryService.call(
       provider: @provider,
       query_type: action_data["query_type"],
@@ -115,6 +127,130 @@ class ProviderAssistant
     return first_response if financial_data["error"]
 
     build_financial_response(financial_data, conversation)
+  end
+
+  # Checks if a financial query is ambiguous (lacks specific date range).
+  # Ambiguous queries should trigger the List Message for clarification.
+  def ambiguous_financial_query?(action_data)
+    query_type = action_data["query_type"]
+    date_from = action_data["date_from"]
+    date_to = action_data["date_to"]
+
+    # "outstanding" queries don't need dates (they show current state)
+    return false if query_type == "outstanding"
+
+    # If query_type is present but dates are missing, it's ambiguous
+    query_type.present? && (date_from.blank? || date_to.blank?)
+  end
+
+  # Sends a List Message with financial options and updates conversation stage.
+  # Returns a response hash that will be persisted.
+  def send_financial_options_list(conversation)
+    payload = WhatsApp::ListMessageBuilder.build_financial_options_list
+
+    WhatsAppService.send_list_message(
+      to: @provider.phone,
+      payload: payload
+    )
+
+    # Update conversation stage to await selection
+    conversation.update!(stage: "awaiting_financial_selection")
+
+    # Return response for persistence
+    {
+      "message" => "[List Message sent: Financial options]",
+      "action" => "none",
+      "action_data" => {},
+      "new_stage" => "awaiting_financial_selection",
+      "updated_context" => {},
+      "should_save_message" => false
+    }
+  end
+
+  # Handles the provider's selection from the financial options List Message.
+  # Routes to the appropriate financial query based on selection.
+  def handle_financial_selection(conversation)
+    selection_id = extract_list_selection_id(@body)
+
+    # Handle "No, gracias" option
+    if selection_id == "no_thanks"
+      conversation.update!(stage: "active")
+      response = {
+        "message" => "Perfecto, aquí estoy si necesitas algo más 😊",
+        "action" => "none",
+        "action_data" => {},
+        "new_stage" => "active",
+        "updated_context" => {},
+        "should_save_message" => false
+      }
+      send_reply(response)
+      persist(response, conversation)
+      return response
+    end
+
+    # Map selection to query type and date range
+    query_params = map_selection_to_query(selection_id)
+
+    # Execute financial query
+    financial_data = Assistants::FinancialQueryService.call(
+      provider: @provider,
+      query_type: query_params[:query_type],
+      date_from: query_params[:date_from],
+      date_to: query_params[:date_to]
+    )
+
+    # Reset conversation stage
+    conversation.update!(stage: "active")
+
+    # Build conversational response
+    response = build_financial_response(financial_data, conversation)
+    response["new_stage"] = "active"
+
+    send_reply(response)
+    persist(response, conversation)
+
+    response
+  end
+
+  # Extracts the selection ID from a List Message response.
+  # The webhook controller already extracts the ID from the interactive payload,
+  # so the body parameter contains the selection ID directly.
+  def extract_list_selection_id(body)
+    body&.strip&.downcase
+  end
+
+  # Maps a financial option selection ID to query parameters.
+  # Returns hash with query_type, date_from, and date_to.
+  def map_selection_to_query(selection_id)
+    today = Date.current
+
+    case selection_id
+    when "income"
+      {
+        query_type: "earnings",
+        date_from: today.beginning_of_month.to_s,
+        date_to: today.to_s
+      }
+    when "expenses"
+      {
+        query_type: "expenses",
+        date_from: today.beginning_of_month.to_s,
+        date_to: today.to_s
+      }
+    when "pending"
+      {
+        query_type: "outstanding",
+        date_from: nil,
+        date_to: nil
+      }
+    else
+      # Default to current month summary
+      {
+        query_type: "summary",
+        date_from: today.beginning_of_month.to_s,
+        date_to: today.to_s
+      }
+    end
   end
 
   # Second Claude call: takes the computed financial data and asks Claude

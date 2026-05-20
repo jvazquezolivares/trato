@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe ProviderAssistant do
   let(:provider) { instance_double(Provider, id: 1, name: "Miguel García", phone: "5212211234567", city: "Veracruz", short_uuid: "a3f8c2d1", facebook_token: nil) }
-  let(:conversation) { instance_double(Conversation, id: 1, context: {}, messages: messages_relation, "stage=" => nil, "context=" => nil, "last_message_at=" => nil) }
+  let(:conversation) { instance_double(Conversation, id: 1, stage: "active", context: {}, messages: messages_relation, "stage=" => nil, "context=" => nil, "last_message_at=" => nil) }
   let(:messages_relation) { double("messages_relation") }
   let(:ordered_messages) { double("ordered_messages") }
   let(:limited_messages) { [] }
@@ -418,7 +418,7 @@ RSpec.describe ProviderAssistant do
       end
     end
 
-    context "when financial_query service returns an error" do
+    context "when financial_query has no date range (ambiguous)" do
       let(:claude_response) do
         {
           "message" => "¿De qué periodo quieres los ingresos?",
@@ -436,22 +436,70 @@ RSpec.describe ProviderAssistant do
       end
 
       before do
+        allow(WhatsAppService).to receive(:send_list_message).and_return(true)
+      end
+
+      it "sends a List Message with financial options" do
+        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+
+        expect(WhatsAppService).to have_received(:send_list_message).with(
+          to: provider.phone,
+          payload: hash_including(
+            type: "list",
+            header: hash_including(text: "¿Qué quieres ver?")
+          )
+        )
+      end
+
+      it "updates conversation stage to awaiting_financial_selection" do
+        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+
+        expect(conversation).to have_received(:update!).with(stage: "awaiting_financial_selection")
+      end
+
+      it "does not call FinancialQueryService" do
+        allow(Assistants::FinancialQueryService).to receive(:call)
+
+        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+
+        expect(Assistants::FinancialQueryService).not_to have_received(:call)
+      end
+    end
+
+    context "when financial_query service returns an error" do
+      let(:claude_response) do
+        {
+          "message" => "No pude obtener los datos financieros",
+          "action" => "financial_query",
+          "action_data" => {
+            "query_type" => "earnings",
+            "date_from" => "2026-05-01",
+            "date_to" => "2026-05-20"
+          },
+          "new_stage" => "active",
+          "updated_context" => {},
+          "should_save_message" => false,
+          "intent" => nil
+        }
+      end
+
+      before do
         allow(Assistants::FinancialQueryService).to receive(:call).and_return(
-          { "error" => "Se requiere rango de fechas para esta consulta" }
+          { "error" => "Database connection failed" }
         )
       end
 
       it "falls back to the first Claude response message" do
-        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+        described_class.call(provider: provider, body: "¿Cuánto gané este mes?")
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: "¿De qué periodo quieres los ingresos?"
+          message: "No pude obtener los datos financieros"
         )
       end
 
       it "does not make a second Claude call" do
-        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+        described_class.call(provider: provider, body: "¿Cuánto gané este mes?")
 
         expect(ClaudeService).to have_received(:call).once
       end
@@ -664,6 +712,266 @@ RSpec.describe ProviderAssistant do
 
         expect(conversation).to have_received(:update!).with(
           hash_including(context: { "collecting" => "client_name" })
+        )
+      end
+    end
+  end
+
+  describe "financial options List Message flow" do
+    context "when conversation stage is awaiting_financial_selection" do
+      let(:conversation) do
+        instance_double(
+          Conversation,
+          id: 1,
+          stage: "awaiting_financial_selection",
+          context: {},
+          messages: messages_relation,
+          "stage=" => nil,
+          "context=" => nil,
+          "last_message_at=" => nil
+        )
+      end
+
+      before do
+        allow(conversation).to receive(:update!).and_return(true)
+        allow(Assistants::FinancialQueryService).to receive(:call).and_return({
+          "query_type" => "earnings",
+          "total" => 5000,
+          "count" => 3
+        })
+      end
+
+      context "when provider selects 'Ver ingresos'" do
+        it "calls FinancialQueryService with earnings query for current month" do
+          described_class.call(provider: provider, body: "income")
+
+          expect(Assistants::FinancialQueryService).to have_received(:call).with(
+            provider: provider,
+            query_type: "earnings",
+            date_from: Date.current.beginning_of_month.to_s,
+            date_to: Date.current.to_s
+          )
+        end
+
+        it "resets conversation stage to active" do
+          described_class.call(provider: provider, body: "income")
+
+          expect(conversation).to have_received(:update!).with(stage: "active")
+        end
+
+        it "sends a conversational response with financial data" do
+          described_class.call(provider: provider, body: "income")
+
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: provider.phone,
+            message: a_string_matching(/.+/)
+          )
+        end
+      end
+
+      context "when provider selects 'Ver gastos'" do
+        it "calls FinancialQueryService with expenses query for current month" do
+          described_class.call(provider: provider, body: "expenses")
+
+          expect(Assistants::FinancialQueryService).to have_received(:call).with(
+            provider: provider,
+            query_type: "expenses",
+            date_from: Date.current.beginning_of_month.to_s,
+            date_to: Date.current.to_s
+          )
+        end
+      end
+
+      context "when provider selects 'Ver cobros pendientes'" do
+        it "calls FinancialQueryService with outstanding query" do
+          described_class.call(provider: provider, body: "pending")
+
+          expect(Assistants::FinancialQueryService).to have_received(:call).with(
+            provider: provider,
+            query_type: "outstanding",
+            date_from: nil,
+            date_to: nil
+          )
+        end
+      end
+
+      context "when provider selects 'No, gracias'" do
+        it "does not call FinancialQueryService" do
+          described_class.call(provider: provider, body: "no_thanks")
+
+          expect(Assistants::FinancialQueryService).not_to have_received(:call)
+        end
+
+        it "resets conversation stage to active" do
+          described_class.call(provider: provider, body: "no_thanks")
+
+          expect(conversation).to have_received(:update!).with(stage: "active")
+        end
+
+        it "sends a friendly acknowledgment message" do
+          described_class.call(provider: provider, body: "no_thanks")
+
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: provider.phone,
+            message: "Perfecto, aquí estoy si necesitas algo más 😊"
+          )
+        end
+      end
+
+      context "when selection ID is uppercase" do
+        it "normalizes to lowercase and processes correctly" do
+          described_class.call(provider: provider, body: "INCOME")
+
+          expect(Assistants::FinancialQueryService).to have_received(:call).with(
+            hash_including(query_type: "earnings")
+          )
+        end
+      end
+
+      context "when selection ID has whitespace" do
+        it "strips whitespace and processes correctly" do
+          described_class.call(provider: provider, body: "  expenses  ")
+
+          expect(Assistants::FinancialQueryService).to have_received(:call).with(
+            hash_including(query_type: "expenses")
+          )
+        end
+      end
+    end
+
+    context "when financial query is ambiguous (no date range)" do
+      let(:claude_response) do
+        {
+          "message" => "¿Qué quieres ver?",
+          "action" => "financial_query",
+          "action_data" => {
+            "query_type" => "earnings",
+            "date_from" => nil,
+            "date_to" => nil
+          },
+          "new_stage" => nil,
+          "updated_context" => {},
+          "should_save_message" => false
+        }
+      end
+
+      before do
+        allow(WhatsApp::ListMessageBuilder).to receive(:build_financial_options_list).and_return({
+          type: "list",
+          action: { button: "Ver opciones" }
+        })
+        allow(WhatsAppService).to receive(:send_list_message).and_return(true)
+      end
+
+      it "sends financial options List Message" do
+        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+
+        expect(WhatsApp::ListMessageBuilder).to have_received(:build_financial_options_list)
+        expect(WhatsAppService).to have_received(:send_list_message).with(
+          to: provider.phone,
+          payload: hash_including(type: "list")
+        )
+      end
+
+      it "updates conversation stage to awaiting_financial_selection" do
+        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+
+        expect(conversation).to have_received(:update!).with(stage: "awaiting_financial_selection")
+      end
+
+      it "does not call FinancialQueryService yet" do
+        allow(Assistants::FinancialQueryService).to receive(:call)
+
+        described_class.call(provider: provider, body: "¿Cuánto he ganado?")
+
+        expect(Assistants::FinancialQueryService).not_to have_received(:call)
+      end
+    end
+
+    context "when financial query has specific date range" do
+      let(:claude_response) do
+        {
+          "message" => "Aquí están tus ingresos",
+          "action" => "financial_query",
+          "action_data" => {
+            "query_type" => "earnings",
+            "date_from" => "2026-05-01",
+            "date_to" => "2026-05-20"
+          },
+          "new_stage" => nil,
+          "updated_context" => {},
+          "should_save_message" => false
+        }
+      end
+
+      before do
+        allow(Assistants::FinancialQueryService).to receive(:call).and_return({
+          "query_type" => "earnings",
+          "total" => 5000,
+          "count" => 3
+        })
+      end
+
+      it "does not send List Message" do
+        allow(WhatsAppService).to receive(:send_list_message)
+
+        described_class.call(provider: provider, body: "¿Cuánto gané en mayo?")
+
+        expect(WhatsAppService).not_to have_received(:send_list_message)
+      end
+
+      it "calls FinancialQueryService directly with date range" do
+        described_class.call(provider: provider, body: "¿Cuánto gané en mayo?")
+
+        expect(Assistants::FinancialQueryService).to have_received(:call).with(
+          provider: provider,
+          query_type: "earnings",
+          date_from: "2026-05-01",
+          date_to: "2026-05-20"
+        )
+      end
+    end
+
+    context "when financial query is for outstanding (no dates needed)" do
+      let(:claude_response) do
+        {
+          "message" => "Aquí están tus cobros pendientes",
+          "action" => "financial_query",
+          "action_data" => {
+            "query_type" => "outstanding",
+            "date_from" => nil,
+            "date_to" => nil
+          },
+          "new_stage" => nil,
+          "updated_context" => {},
+          "should_save_message" => false
+        }
+      end
+
+      before do
+        allow(Assistants::FinancialQueryService).to receive(:call).and_return({
+          "query_type" => "outstanding",
+          "total" => 2000,
+          "count" => 2
+        })
+      end
+
+      it "does not send List Message (outstanding queries don't need dates)" do
+        allow(WhatsAppService).to receive(:send_list_message)
+
+        described_class.call(provider: provider, body: "¿Qué me deben?")
+
+        expect(WhatsAppService).not_to have_received(:send_list_message)
+      end
+
+      it "calls FinancialQueryService directly" do
+        described_class.call(provider: provider, body: "¿Qué me deben?")
+
+        expect(Assistants::FinancialQueryService).to have_received(:call).with(
+          provider: provider,
+          query_type: "outstanding",
+          date_from: nil,
+          date_to: nil
         )
       end
     end
