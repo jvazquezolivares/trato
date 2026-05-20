@@ -271,16 +271,27 @@ class OnboardingService
     end
 
     data["base_price"] = price_range
-    advance_to(
-      "collecting_experience",
-      message: "¿Cuántos años de experiencia tienes?"
-    )
+
+    # Send List Message for experience range selection
+    send_experience_range_list
+    @state["stage"] = "collecting_experience"
+    save_state
   end
 
   def collect_experience
-    return send_message("¿Cuántos años de experiencia tienes?") if @body.blank?
+    return send_message("Por favor selecciona un rango de experiencia de la lista.") if @body.blank?
 
-    data["years_experience"] = @body
+    # Extract experience range from List Message selection
+    # The response will be the ID from the list (e.g., "1-3", "4-6", "7-10", "10+")
+    # or the title text (e.g., "1–3 años")
+    numeric_experience = extract_experience_range(@body)
+
+    if numeric_experience.nil?
+      send_message("No entendí cuál seleccionaste. Por favor elige un rango de la lista.")
+      return
+    end
+
+    data["years_experience"] = numeric_experience
     advance_to(
       "collecting_specialties",
       message: "¿Hay algo en lo que te especialices? Por ejemplo: urgencias, instalaciones nuevas, reparaciones..."
@@ -530,6 +541,7 @@ class OnboardingService
       city: data["city"],
       service_area: data["service_area"],
       base_price: data["base_price"],
+      years_experience: data["years_experience"],
       bio: data["bio"],
       email: data["email"],
       facebook_page_url: data["facebook_page_url"],
@@ -667,6 +679,11 @@ class OnboardingService
     WhatsAppService.send_list_message(to: @from, payload: payload)
   end
 
+  def send_experience_range_list
+    payload = WhatsApp::ListMessageBuilder.build_experience_range_list
+    WhatsAppService.send_list_message(to: @from, payload: payload)
+  end
+
   def extract_price_range(body)
     normalized_body = body.downcase.strip
 
@@ -699,6 +716,43 @@ class OnboardingService
 
     # Check for "más de 600" or "600+" variations
     return price_range_map["600+"] if normalized_body.match?(/m[aá]s\s+de\s+600|600\s*\+/)
+
+    nil
+  end
+
+  def extract_experience_range(body)
+    normalized_body = body.downcase.strip
+
+    # Map of possible responses to numeric values
+    # "1–3 años" → 1, "4–6 años" → 4, "7–10 años" → 7, "Más de 10 años" → 10
+    experience_map = {
+      "1-3" => 1,
+      "4-6" => 4,
+      "7-10" => 7,
+      "10+" => 10
+    }
+
+    # Try to match by ID (e.g., "1-3", "4-6")
+    return experience_map[normalized_body] if experience_map.key?(normalized_body)
+
+    # Try to match by partial text (e.g., "1–3 años", "1-3", "1 3")
+    experience_map.each do |id, numeric_value|
+      # Check if body contains the ID pattern (with hyphen or en-dash)
+      id_with_endash = id.gsub("-", "–")
+      return numeric_value if normalized_body.include?(id) || normalized_body.include?(id_with_endash)
+
+      # Check for variations like "1 3" or "1 a 3"
+      if id.include?("-")
+        range_parts = id.split("-")
+        return numeric_value if normalized_body.include?(range_parts.join(" ")) ||
+                               normalized_body.include?("#{range_parts[0]} a #{range_parts[1]}")
+      end
+
+      # Check for "más de 10" or "10+" variations
+      if id == "10+"
+        return numeric_value if normalized_body.match?(/m[aá]s\s+de\s+10|10\s*\+/)
+      end
+    end
 
     nil
   end

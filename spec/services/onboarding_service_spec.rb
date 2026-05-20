@@ -650,9 +650,10 @@ RSpec.describe OnboardingService do
             "service_area" => "Boca del Río"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
+        allow(WhatsAppService).to receive(:send_list_message).and_return(true)
       end
 
-      it "stores price range from List Message ID and asks for experience" do
+      it "stores price range from List Message ID and sends experience range List Message" do
         described_class.call(from: phone, body: "100-200")
 
         expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
@@ -660,9 +661,12 @@ RSpec.describe OnboardingService do
           expect(parsed["data"]["base_price"]).to eq("$100–200 MXN")
         end
 
-        expect(WhatsAppService).to have_received(:send_message).with(
+        expect(WhatsAppService).to have_received(:send_list_message).with(
           to: phone,
-          message: a_string_matching(/experiencia/i)
+          payload: a_hash_including(
+            type: "list",
+            header: a_hash_including(text: "Años de experiencia")
+          )
         )
       end
 
@@ -786,12 +790,15 @@ RSpec.describe OnboardingService do
               end
             end
 
-            it "asks for years of experience" do
+            it "sends experience range List Message" do
               described_class.call(from: phone, body: price_range[:id])
 
-              expect(WhatsAppService).to have_received(:send_message).with(
+              expect(WhatsAppService).to have_received(:send_list_message).with(
                 to: phone,
-                message: a_string_matching(/experiencia/i)
+                payload: a_hash_including(
+                  type: "list",
+                  header: a_hash_including(text: "Años de experiencia")
+                )
               )
             end
 
@@ -987,10 +994,13 @@ RSpec.describe OnboardingService do
             expect(parsed["stage"]).to eq("collecting_experience") if parsed["stage"] == "collecting_experience"
           end
 
-          # Verify experience question is asked
-          expect(WhatsAppService).to have_received(:send_message).with(
+          # Verify experience range List Message is sent
+          expect(WhatsAppService).to have_received(:send_list_message).with(
             to: phone,
-            message: a_string_matching(/experiencia/i)
+            payload: a_hash_including(
+              type: "list",
+              header: a_hash_including(text: "Años de experiencia")
+            )
           )
         end
       end
@@ -1007,13 +1017,259 @@ RSpec.describe OnboardingService do
         allow(redis_mock).to receive(:setex).and_return("OK")
       end
 
-      it "stores experience and asks for specialties" do
-        described_class.call(from: phone, body: "8 años")
+      it "stores numeric experience value from List Message ID and asks for specialties" do
+        described_class.call(from: phone, body: "4-6")
+
+        expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["years_experience"]).to eq(4)
+        end
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: phone,
           message: a_string_matching(/especiali/i)
         )
+      end
+
+      it "handles 1-3 años experience range (maps to 1)" do
+        described_class.call(from: phone, body: "1-3")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          if parsed["data"]["years_experience"]
+            expect(parsed["data"]["years_experience"]).to eq(1)
+          end
+        end
+      end
+
+      it "handles 4-6 años experience range (maps to 4)" do
+        described_class.call(from: phone, body: "4-6")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          if parsed["data"]["years_experience"]
+            expect(parsed["data"]["years_experience"]).to eq(4)
+          end
+        end
+      end
+
+      it "handles 7-10 años experience range (maps to 7)" do
+        described_class.call(from: phone, body: "7-10")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          if parsed["data"]["years_experience"]
+            expect(parsed["data"]["years_experience"]).to eq(7)
+          end
+        end
+      end
+
+      it "handles Más de 10 años experience range (maps to 10)" do
+        described_class.call(from: phone, body: "10+")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          if parsed["data"]["years_experience"]
+            expect(parsed["data"]["years_experience"]).to eq(10)
+          end
+        end
+      end
+
+      it "handles full text selection '1–3 años'" do
+        described_class.call(from: phone, body: "1–3 años")
+
+        expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["years_experience"]).to eq(1)
+        end
+      end
+
+      it "handles 'más de 10' text variation" do
+        described_class.call(from: phone, body: "más de 10")
+
+        expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["years_experience"]).to eq(10)
+        end
+      end
+
+      it "prompts to select from list when experience range not recognized" do
+        described_class.call(from: phone, body: "15 años")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/no entendí.*lista/i)
+        )
+      end
+
+      it "prompts to select from list when body is blank" do
+        described_class.call(from: phone, body: "")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: "Por favor selecciona un rango de experiencia de la lista."
+        )
+      end
+
+      it "does not transition to specialties stage when experience not recognized" do
+        described_class.call(from: phone, body: "invalid experience")
+
+        expect(WhatsAppService).not_to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/especiali/i)
+        )
+      end
+
+      # Comprehensive tests for all 4 experience range options
+      context "when testing all experience range options" do
+        EXPERIENCE_RANGES = [
+          { id: "1-3", numeric: 1, title: "1–3 años", variations: [ "1-3", "1–3 años", "1 3", "1 a 3" ] },
+          { id: "4-6", numeric: 4, title: "4–6 años", variations: [ "4-6", "4–6 años", "4 6", "4 a 6" ] },
+          { id: "7-10", numeric: 7, title: "7–10 años", variations: [ "7-10", "7–10 años", "7 10", "7 a 10" ] },
+          { id: "10+", numeric: 10, title: "Más de 10 años", variations: [ "10+", "Más de 10 años", "más de 10", "mas de 10" ] }
+        ].freeze
+
+        EXPERIENCE_RANGES.each do |exp_range|
+          context "when provider selects '#{exp_range[:title]}' (#{exp_range[:id]})" do
+            it "stores the numeric value #{exp_range[:numeric]} in Redis" do
+              described_class.call(from: phone, body: exp_range[:id])
+
+              expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+                parsed = JSON.parse(json)
+                if parsed["data"]["years_experience"]
+                  expect(parsed["data"]["years_experience"]).to eq(exp_range[:numeric])
+                end
+              end
+            end
+
+            it "transitions to collecting_specialties stage" do
+              described_class.call(from: phone, body: exp_range[:id])
+
+              expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+                parsed = JSON.parse(json)
+                expect(parsed["stage"]).to eq("collecting_specialties") if parsed["stage"] == "collecting_specialties"
+              end
+            end
+
+            it "asks for specialties" do
+              described_class.call(from: phone, body: exp_range[:id])
+
+              expect(WhatsAppService).to have_received(:send_message).with(
+                to: phone,
+                message: a_string_matching(/especiali/i)
+              )
+            end
+
+            # Test all variations for this experience range
+            exp_range[:variations].each do |variation|
+              it "handles variation '#{variation}'" do
+                described_class.call(from: phone, body: variation)
+
+                expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+                  parsed = JSON.parse(json)
+                  if parsed["data"]["years_experience"]
+                    expect(parsed["data"]["years_experience"]).to eq(exp_range[:numeric])
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+
+      context "when testing experience range extraction logic" do
+        it "extracts experience range from List Message ID format" do
+          described_class.call(from: phone, body: "1-3")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["years_experience"]).to eq(1)
+          end
+        end
+
+        it "extracts experience range from full text" do
+          described_class.call(from: phone, body: "4–6 años")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["years_experience"]).to eq(4)
+          end
+        end
+
+        it "extracts experience range from space-separated format" do
+          described_class.call(from: phone, body: "7 10")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["years_experience"]).to eq(7)
+          end
+        end
+
+        it "extracts experience range from 'a' separator format" do
+          described_class.call(from: phone, body: "1 a 3")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["years_experience"]).to eq(1)
+          end
+        end
+
+        it "handles case-insensitive matching" do
+          described_class.call(from: phone, body: "MÁS DE 10")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["years_experience"]).to eq(10)
+          end
+        end
+
+        it "returns nil for unrecognized format" do
+          described_class.call(from: phone, body: "veinte años")
+
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: phone,
+            message: "No entendí cuál seleccionaste. Por favor elige un rango de la lista."
+          )
+        end
+      end
+
+      context "when testing stage transitions" do
+        it "transitions from collecting_experience to collecting_specialties on valid selection" do
+          described_class.call(from: phone, body: "4-6")
+
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["stage"]).to eq("collecting_specialties") if parsed["stage"] == "collecting_specialties"
+          end
+        end
+
+        it "does not transition when experience range is invalid" do
+          described_class.call(from: phone, body: "invalid")
+
+          # Should not transition to collecting_specialties
+          expect(WhatsAppService).not_to have_received(:send_message).with(
+            to: phone,
+            message: a_string_matching(/especiali/i)
+          )
+        end
+
+        it "stores numeric value before transitioning" do
+          described_class.call(from: phone, body: "7-10")
+
+          # First setex should store the experience value
+          # Second setex should transition the stage
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            if parsed["data"]["years_experience"]
+              expect(parsed["data"]["years_experience"]).to eq(7)
+            end
+          end
+
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["stage"]).to eq("collecting_specialties") if parsed["stage"] == "collecting_specialties"
+          end
+        end
       end
     end
 
@@ -1023,7 +1279,7 @@ RSpec.describe OnboardingService do
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_specialties", data: {
             "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
-            "service_area" => "Boca del Río", "base_price" => "$200–400 MXN", "years_experience" => "8"
+            "service_area" => "Boca del Río", "base_price" => "$200–400 MXN", "years_experience" => 7
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
       end
@@ -1045,7 +1301,7 @@ RSpec.describe OnboardingService do
           .and_return(redis_state(stage: "collecting_specialized_work", data: {
             "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
             "service_area" => "Boca del Río", "base_price" => "$200–400 MXN",
-            "years_experience" => "8", "specialties" => "urgencias"
+            "years_experience" => 7, "specialties" => "urgencias"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
       end
@@ -1066,7 +1322,7 @@ RSpec.describe OnboardingService do
       {
         "name" => "Miguel García", "categories" => [ "fontanero" ],
         "city" => "Veracruz", "service_area" => "Boca del Río",
-        "base_price" => "$200–400 MXN", "years_experience" => "8",
+        "base_price" => "$200–400 MXN", "years_experience" => 7,
         "specialties" => "urgencias", "specialized_work" => "calentadores",
         "bio_answers" => [ "Me gusta ayudar", "Un panel completo", "Soy puntual" ],
         "bio_question_index" => 3
@@ -1343,7 +1599,8 @@ RSpec.describe OnboardingService do
       {
         "name" => "Miguel García", "categories" => [ "fontanero", "electricista" ],
         "city" => "Veracruz", "service_area" => "Boca del Río, Centro",
-        "base_price" => "$200–400 MXN", "bio" => "Miguel es fontanero con experiencia...",
+        "base_price" => "$200–400 MXN", "years_experience" => 7,
+        "bio" => "Miguel es fontanero con experiencia...",
         "email" => "miguel@gmail.com", "facebook_page_url" => nil
       }
     end
@@ -1386,6 +1643,7 @@ RSpec.describe OnboardingService do
           name: "Miguel García",
           phone: phone,
           city: "Veracruz",
+          years_experience: 7,
           bio: "Miguel es fontanero con experiencia...",
           email: "miguel@gmail.com",
           active: true
