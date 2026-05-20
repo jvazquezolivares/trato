@@ -9,7 +9,7 @@ RSpec.describe "Providers", type: :request do
              name: "Miguel García",
              city: "Veracruz",
              service_area: "Boca del Río, Centro",
-             base_price: 300,
+             base_price: "$200–400 MXN",
              bio: "Fontanero con experiencia en Veracruz.",
              short_uuid: "a3f8c2d1",
              slug: "fontaneros-en-veracruz/miguel-garcia-fontanero-a3f8c2d1")
@@ -54,8 +54,7 @@ RSpec.describe "Providers", type: :request do
       it "renders the visit price" do
         get "/p/fontaneros-en-veracruz/miguel-garcia-fontanero-a3f8c2d1"
 
-        expect(response.body).to include("$300")
-        expect(response.body).to include("MXN")
+        expect(response.body).to include("$200–400 MXN")
       end
 
       it "renders the CTA button with assistant_whatsapp_link" do

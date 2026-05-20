@@ -140,9 +140,9 @@
               <h3 class="text-lg font-bold font-[Plus_Jakarta_Sans] text-[#111C2D] group-hover:text-[#005C55] transition-colors">
                 <%= provider.name %>
               </h3>
-              <% if provider.base_price&.positive? %>
+              <% if provider.base_price.present? %>
                 <span class="text-[#0F766E] font-extrabold text-lg shrink-0">
-                  $<%= provider.base_price.to_i %><span class="text-xs font-medium text-[#6E7977]">/visita</span>
+                  <%= provider.base_price %><span class="text-xs font-medium text-[#6E7977]">/visita</span>
                 </span>
               <% end %>
             </div>

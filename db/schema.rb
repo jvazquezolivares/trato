@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_20_040813) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_20_044650) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -173,7 +173,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_20_040813) do
 
   create_table "providers", force: :cascade do |t|
     t.boolean "active", default: true
-    t.decimal "base_price"
+    t.string "base_price"
     t.text "bio"
     t.string "city"
     t.datetime "created_at", null: false

@@ -8,7 +8,7 @@ RSpec.describe Assistants::ClientPromptBuilder do
       Provider,
       id: 1, name: "Miguel García", phone: "5212211234567",
       city: "Veracruz", service_area: "Boca del Río",
-      base_price: 300, bio: "Electricista con experiencia",
+      base_price: "$200–400 MXN", bio: "Electricista con experiencia",
       slug: "electricistas-en-veracruz/miguel-a3f8c2d1"
     )
   end

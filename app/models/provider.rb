@@ -6,7 +6,7 @@
 #
 #  id                        :bigint       not null, primary key
 #  active                    :boolean      default(true)
-#  base_price                :decimal
+#  base_price                :string
 #  bio                       :text
 #  city                      :string
 #  email                     :string

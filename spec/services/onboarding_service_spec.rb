@@ -615,14 +615,28 @@ RSpec.describe OnboardingService do
             "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
+        allow(WhatsAppService).to receive(:send_list_message).and_return(true)
       end
 
-      it "stores area and asks for price" do
+      it "stores area and sends price range List Message" do
         described_class.call(from: phone, body: "Boca del Río, Centro")
 
-        expect(WhatsAppService).to have_received(:send_message).with(
+        expect(WhatsAppService).to have_received(:send_list_message).with(
           to: phone,
-          message: a_string_matching(/diagnóstico/i)
+          payload: a_hash_including(
+            type: "list",
+            header: a_hash_including(text: "Rango de precio")
+          )
+        )
+      end
+
+      it "transitions to collecting_price stage" do
+        described_class.call(from: phone, body: "Boca del Río, Centro")
+
+        expect(redis_mock).to have_received(:setex).with(
+          "onboarding_state:#{phone}",
+          86_400,
+          a_string_matching(/"stage":"collecting_price"/)
         )
       end
     end
@@ -638,18 +652,347 @@ RSpec.describe OnboardingService do
         allow(redis_mock).to receive(:setex).and_return("OK")
       end
 
-      it "extracts numeric price and asks for experience" do
-        described_class.call(from: phone, body: "$300 pesos")
+      it "stores price range from List Message ID and asks for experience" do
+        described_class.call(from: phone, body: "100-200")
 
         expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
           parsed = JSON.parse(json)
-          expect(parsed["data"]["base_price"]).to eq("300")
+          expect(parsed["data"]["base_price"]).to eq("$100–200 MXN")
         end
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: phone,
           message: a_string_matching(/experiencia/i)
         )
+      end
+
+      it "stores price range from full text selection" do
+        described_class.call(from: phone, body: "$200–400 MXN")
+
+        expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["base_price"]).to eq("$200–400 MXN")
+        end
+      end
+
+      it "handles $100-200 MXN price range" do
+        described_class.call(from: phone, body: "100-200")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          if parsed["data"]["base_price"]
+            expect(parsed["data"]["base_price"]).to eq("$100–200 MXN")
+          end
+        end
+      end
+
+      it "handles $200-400 MXN price range" do
+        described_class.call(from: phone, body: "200-400")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          if parsed["data"]["base_price"]
+            expect(parsed["data"]["base_price"]).to eq("$200–400 MXN")
+          end
+        end
+      end
+
+      it "handles $400-600 MXN price range" do
+        described_class.call(from: phone, body: "400-600")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          if parsed["data"]["base_price"]
+            expect(parsed["data"]["base_price"]).to eq("$400–600 MXN")
+          end
+        end
+      end
+
+      it "handles Más de $600 MXN price range" do
+        described_class.call(from: phone, body: "600+")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          if parsed["data"]["base_price"]
+            expect(parsed["data"]["base_price"]).to eq("Más de $600 MXN")
+          end
+        end
+      end
+
+      it "handles 'más de 600' text variation" do
+        described_class.call(from: phone, body: "más de 600")
+
+        expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["base_price"]).to eq("Más de $600 MXN")
+        end
+      end
+
+      it "prompts to select from list when price range not recognized" do
+        described_class.call(from: phone, body: "50 pesos")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/no entendí.*lista/i)
+        )
+      end
+
+      it "prompts to select from list when body is blank" do
+        described_class.call(from: phone, body: "")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: "Por favor selecciona un rango de precio de la lista."
+        )
+      end
+
+      it "does not transition to experience stage when price not recognized" do
+        described_class.call(from: phone, body: "invalid price")
+
+        expect(WhatsAppService).not_to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/experiencia/i)
+        )
+      end
+
+      # Comprehensive tests for all 4 price range options
+      context "when testing all price range options" do
+        PRICE_RANGES = [
+          { id: "100-200", title: "$100–200 MXN", variations: [ "100-200", "$100–200 MXN", "100 200", "100 a 200" ] },
+          { id: "200-400", title: "$200–400 MXN", variations: [ "200-400", "$200–400 MXN", "200 400", "200 a 400" ] },
+          { id: "400-600", title: "$400–600 MXN", variations: [ "400-600", "$400–600 MXN", "400 600", "400 a 600" ] },
+          { id: "600+", title: "Más de $600 MXN", variations: [ "600+", "Más de $600 MXN", "más de 600", "mas de 600" ] }
+        ].freeze
+
+        PRICE_RANGES.each do |price_range|
+          context "when provider selects '#{price_range[:title]}' (#{price_range[:id]})" do
+            it "stores the standardized price range in Redis" do
+              described_class.call(from: phone, body: price_range[:id])
+
+              expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+                parsed = JSON.parse(json)
+                if parsed["data"]["base_price"]
+                  expect(parsed["data"]["base_price"]).to eq(price_range[:title])
+                end
+              end
+            end
+
+            it "transitions to collecting_experience stage" do
+              described_class.call(from: phone, body: price_range[:id])
+
+              expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+                parsed = JSON.parse(json)
+                expect(parsed["stage"]).to eq("collecting_experience") if parsed["stage"] == "collecting_experience"
+              end
+            end
+
+            it "asks for years of experience" do
+              described_class.call(from: phone, body: price_range[:id])
+
+              expect(WhatsAppService).to have_received(:send_message).with(
+                to: phone,
+                message: a_string_matching(/experiencia/i)
+              )
+            end
+
+            # Test all variations for this price range
+            price_range[:variations].each do |variation|
+              it "handles variation '#{variation}'" do
+                described_class.call(from: phone, body: variation)
+
+                expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+                  parsed = JSON.parse(json)
+                  if parsed["data"]["base_price"]
+                    expect(parsed["data"]["base_price"]).to eq(price_range[:title])
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+
+      context "when testing price range extraction logic" do
+        it "extracts price range from List Message ID format" do
+          described_class.call(from: phone, body: "100-200")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["base_price"]).to eq("$100–200 MXN")
+          end
+        end
+
+        it "extracts price range from full text with currency symbol" do
+          described_class.call(from: phone, body: "$200–400 MXN")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["base_price"]).to eq("$200–400 MXN")
+          end
+        end
+
+        it "extracts price range from space-separated format" do
+          described_class.call(from: phone, body: "400 600")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["base_price"]).to eq("$400–600 MXN")
+          end
+        end
+
+        it "extracts price range from 'a' separator format" do
+          described_class.call(from: phone, body: "100 a 200")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["base_price"]).to eq("$100–200 MXN")
+          end
+        end
+
+        it "handles case-insensitive 'más de' variations" do
+          [ "más de 600", "Más de 600", "MÁS DE 600", "mas de 600" ].each do |variation|
+            allow(redis_mock).to receive(:setex).and_return("OK")
+            allow(WhatsAppService).to receive(:send_message).and_return(true)
+
+            described_class.call(from: phone, body: variation)
+
+            expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+              parsed = JSON.parse(json)
+              if parsed["data"]["base_price"]
+                expect(parsed["data"]["base_price"]).to eq("Más de $600 MXN")
+              end
+            end
+          end
+        end
+
+        it "handles '600+' shorthand format" do
+          described_class.call(from: phone, body: "600+")
+
+          expect(redis_mock).to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["base_price"]).to eq("Más de $600 MXN")
+          end
+        end
+      end
+
+      context "when testing error handling" do
+        it "does not store price when format is invalid" do
+          described_class.call(from: phone, body: "cincuenta pesos")
+
+          expect(redis_mock).not_to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            parsed["data"]["base_price"].present?
+          end
+        end
+
+        it "does not transition stage when price is invalid" do
+          described_class.call(from: phone, body: "invalid")
+
+          expect(redis_mock).not_to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            parsed["stage"] == "collecting_experience"
+          end
+        end
+
+        it "sends error message for unrecognized price format" do
+          described_class.call(from: phone, body: "treinta pesos")
+
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: phone,
+            message: a_string_matching(/no entendí.*lista/i)
+          )
+        end
+
+        it "sends specific prompt when body is blank" do
+          described_class.call(from: phone, body: "")
+
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: phone,
+            message: "Por favor selecciona un rango de precio de la lista."
+          )
+        end
+
+        it "does not send experience question when body is blank" do
+          described_class.call(from: phone, body: "")
+
+          expect(WhatsAppService).not_to have_received(:send_message).with(
+            to: phone,
+            message: a_string_matching(/experiencia/i)
+          )
+        end
+
+        it "maintains collecting_price stage when price is invalid" do
+          described_class.call(from: phone, body: "invalid")
+
+          # Should not transition to collecting_experience
+          expect(WhatsAppService).not_to have_received(:send_message).with(
+            to: phone,
+            message: a_string_matching(/experiencia/i)
+          )
+        end
+      end
+
+      context "when testing stage transitions" do
+        it "transitions from collecting_price to collecting_experience on valid selection" do
+          described_class.call(from: phone, body: "200-400")
+
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["stage"]).to eq("collecting_experience") if parsed["stage"] == "collecting_experience"
+          end
+        end
+
+        it "stores price data before transitioning stage" do
+          described_class.call(from: phone, body: "400-600")
+
+          # Verify that setex is called with both price data and stage transition
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            if parsed["data"]["base_price"]
+              expect(parsed["data"]["base_price"]).to eq("$400–600 MXN")
+            end
+          end
+        end
+
+        it "does not transition stage on invalid input" do
+          described_class.call(from: phone, body: "not a price")
+
+          # Should remain in collecting_price stage
+          expect(redis_mock).not_to have_received(:setex) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            parsed["stage"] == "collecting_experience"
+          end
+        end
+      end
+
+      context "when testing complete flow from price to experience" do
+        it "completes the full transition with all data intact" do
+          described_class.call(from: phone, body: "200-400")
+
+          # Verify price is stored
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            if parsed["data"]["base_price"]
+              expect(parsed["data"]["base_price"]).to eq("$200–400 MXN")
+              # Verify previous data is preserved
+              expect(parsed["data"]["name"]).to eq("Miguel")
+              expect(parsed["data"]["city"]).to eq("Veracruz")
+              expect(parsed["data"]["service_area"]).to eq("Boca del Río")
+            end
+          end
+
+          # Verify stage transition
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["stage"]).to eq("collecting_experience") if parsed["stage"] == "collecting_experience"
+          end
+
+          # Verify experience question is asked
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: phone,
+            message: a_string_matching(/experiencia/i)
+          )
+        end
       end
     end
 
@@ -659,7 +1002,7 @@ RSpec.describe OnboardingService do
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_experience", data: {
             "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
-            "service_area" => "Boca del Río", "base_price" => "300"
+            "service_area" => "Boca del Río", "base_price" => "$200–400 MXN"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
       end
@@ -680,7 +1023,7 @@ RSpec.describe OnboardingService do
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_specialties", data: {
             "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
-            "service_area" => "Boca del Río", "base_price" => "300", "years_experience" => "8"
+            "service_area" => "Boca del Río", "base_price" => "$200–400 MXN", "years_experience" => "8"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
       end
@@ -701,7 +1044,7 @@ RSpec.describe OnboardingService do
           .with("onboarding_state:#{phone}")
           .and_return(redis_state(stage: "collecting_specialized_work", data: {
             "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
-            "service_area" => "Boca del Río", "base_price" => "300",
+            "service_area" => "Boca del Río", "base_price" => "$200–400 MXN",
             "years_experience" => "8", "specialties" => "urgencias"
           }))
         allow(redis_mock).to receive(:setex).and_return("OK")
@@ -723,7 +1066,7 @@ RSpec.describe OnboardingService do
       {
         "name" => "Miguel García", "categories" => [ "fontanero" ],
         "city" => "Veracruz", "service_area" => "Boca del Río",
-        "base_price" => "300", "years_experience" => "8",
+        "base_price" => "$200–400 MXN", "years_experience" => "8",
         "specialties" => "urgencias", "specialized_work" => "calentadores",
         "bio_answers" => [ "Me gusta ayudar", "Un panel completo", "Soy puntual" ],
         "bio_question_index" => 3
@@ -884,7 +1227,7 @@ RSpec.describe OnboardingService do
     let(:base_data) do
       {
         "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
-        "service_area" => "Boca del Río", "base_price" => "300",
+        "service_area" => "Boca del Río", "base_price" => "$200–400 MXN",
         "bio" => "Miguel es fontanero..."
       }
     end
@@ -948,7 +1291,7 @@ RSpec.describe OnboardingService do
     let(:base_data) do
       {
         "name" => "Miguel", "categories" => [ "fontanero" ], "city" => "Veracruz",
-        "service_area" => "Boca del Río", "base_price" => "300",
+        "service_area" => "Boca del Río", "base_price" => "$200–400 MXN",
         "bio" => "Miguel es fontanero..."
       }
     end
@@ -1000,7 +1343,7 @@ RSpec.describe OnboardingService do
       {
         "name" => "Miguel García", "categories" => [ "fontanero", "electricista" ],
         "city" => "Veracruz", "service_area" => "Boca del Río, Centro",
-        "base_price" => "300", "bio" => "Miguel es fontanero con experiencia...",
+        "base_price" => "$200–400 MXN", "bio" => "Miguel es fontanero con experiencia...",
         "email" => "miguel@gmail.com", "facebook_page_url" => nil
       }
     end

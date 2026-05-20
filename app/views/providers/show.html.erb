@@ -99,11 +99,10 @@
     <%# Right column: Sticky CTA card (desktop) %>
     <div class="lg:col-span-4 lg:sticky lg:top-28">
       <div class="bg-white rounded-xl p-6 md:p-8 shadow-[0_32px_32px_rgba(17,28,45,0.06)]">
-        <% if @profile.provider.base_price&.positive? %>
+        <% if @profile.provider.base_price.present? %>
           <div class="flex justify-between items-center mb-6">
             <div>
-              <span class="text-3xl font-extrabold font-[Plus_Jakarta_Sans]">$<%= @profile.provider.base_price.to_i %></span>
-              <span class="text-[#3E4947]"> MXN</span>
+              <span class="text-3xl font-extrabold font-[Plus_Jakarta_Sans]"><%= @profile.provider.base_price %></span>
             </div>
             <span class="text-sm font-bold text-[#005C55]">Precio base visita</span>
           </div>
@@ -141,13 +140,13 @@
         <% end %>
 
         <%# Visit price highlight box %>
-        <% if @profile.provider.base_price&.positive? %>
+        <% if @profile.provider.base_price.present? %>
           <div class="inline-flex items-center gap-4 bg-white px-6 py-4 rounded-xl border-l-4 border-[#FEA619] shadow-[0_32px_32px_rgba(17,28,45,0.06)]">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7 text-[#FEA619] shrink-0">
               <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd" />
             </svg>
             <div>
-              <div class="font-bold text-[#111C2D]">Visita de diagnóstico: <%= formatted_price(@profile.provider.base_price) %></div>
+              <div class="font-bold text-[#111C2D]">Visita de diagnóstico: <%= @profile.provider.base_price %></div>
               <div class="text-sm text-[#3E4947]">Se descuenta del total si se realiza el trabajo.</div>
             </div>
           </div>

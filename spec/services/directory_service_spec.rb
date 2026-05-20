@@ -8,7 +8,7 @@ RSpec.describe DirectoryService do
       create(:provider,
              name: "Miguel García",
              city: "Veracruz",
-             base_price: 300,
+             base_price: "$200–400 MXN",
              active: true)
     end
 

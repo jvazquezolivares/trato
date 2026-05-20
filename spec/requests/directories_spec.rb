@@ -8,7 +8,7 @@ RSpec.describe "Directories", type: :request do
       create(:provider,
              name: "Miguel García",
              city: "Veracruz",
-             base_price: 300,
+             base_price: "$200–400 MXN",
              bio: "Fontanero con experiencia en Veracruz.",
              short_uuid: "a3f8c2d1",
              slug: "fontaneros-en-veracruz/miguel-garcia-fontanero-a3f8c2d1",
@@ -126,7 +126,7 @@ RSpec.describe "Directories", type: :request do
         create(:provider,
                name: "Carlos Pérez",
                city: "Veracruz",
-               base_price: 400,
+               base_price: "$400–600 MXN",
                short_uuid: "b4e9d3f2",
                slug: "fontaneros-en-veracruz/carlos-perez-fontanero-b4e9d3f2",
                active: true)

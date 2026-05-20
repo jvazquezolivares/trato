@@ -130,7 +130,7 @@ RSpec.describe "Provider Panel (/mi-perfil)", type: :request do
 
       it "updates the provider basic info" do
         patch "/mi-perfil", params: {
-          provider: { name: "Miguel Updated", city: "Puebla", bio: "New bio", base_price: 500, email: "miguel@test.com" }
+          provider: { name: "Miguel Updated", city: "Puebla", bio: "New bio", base_price: "$400–600 MXN", email: "miguel@test.com" }
         }
 
         expect(response).to redirect_to(mi_perfil_path)
@@ -138,7 +138,7 @@ RSpec.describe "Provider Panel (/mi-perfil)", type: :request do
         expect(provider.name).to eq("Miguel Updated")
         expect(provider.city).to eq("Puebla")
         expect(provider.bio).to eq("New bio")
-        expect(provider.base_price).to eq(500)
+        expect(provider.base_price).to eq("$400–600 MXN")
         expect(provider.email).to eq("miguel@test.com")
       end
 

@@ -250,16 +250,27 @@ class OnboardingService
     return send_message("¿En qué zonas o colonias das servicio?") if @body.blank?
 
     data["service_area"] = @body
-    advance_to(
-      "collecting_price",
-      message: "¿Cuánto cobras por visita de diagnóstico? (en pesos MXN)"
-    )
+
+    # Send List Message for price range selection
+    send_price_range_list
+    @state["stage"] = "collecting_price"
+    save_state
   end
 
   def collect_price
-    return send_message("¿Cuánto cobras por visita de diagnóstico? Solo pon el número en pesos.") if @body.blank?
+    return send_message("Por favor selecciona un rango de precio de la lista.") if @body.blank?
 
-    data["base_price"] = extract_price(@body)
+    # Extract price range from List Message selection
+    # The response will be the ID from the list (e.g., "100-200", "200-400", "400-600", "600+")
+    # or the title text (e.g., "$100–200 MXN")
+    price_range = extract_price_range(@body)
+
+    if price_range.nil?
+      send_message("No entendí cuál seleccionaste. Por favor elige un rango de la lista.")
+      return
+    end
+
+    data["base_price"] = price_range
     advance_to(
       "collecting_experience",
       message: "¿Cuántos años de experiencia tienes?"
@@ -518,7 +529,7 @@ class OnboardingService
       short_uuid: SecureRandom.hex(4),
       city: data["city"],
       service_area: data["service_area"],
-      base_price: data["base_price"].to_d,
+      base_price: data["base_price"],
       bio: data["bio"],
       email: data["email"],
       facebook_page_url: data["facebook_page_url"],
@@ -649,6 +660,47 @@ class OnboardingService
   def send_primary_trade_list(categories)
     payload = WhatsApp::ListMessageBuilder.build_primary_trade_list(categories)
     WhatsAppService.send_list_message(to: @from, payload: payload)
+  end
+
+  def send_price_range_list
+    payload = WhatsApp::ListMessageBuilder.build_price_range_list
+    WhatsAppService.send_list_message(to: @from, payload: payload)
+  end
+
+  def extract_price_range(body)
+    normalized_body = body.downcase.strip
+
+    # Map of possible responses to standardized price range strings
+    price_range_map = {
+      "100-200" => "$100–200 MXN",
+      "200-400" => "$200–400 MXN",
+      "400-600" => "$400–600 MXN",
+      "600+" => "Más de $600 MXN"
+    }
+
+    # Try to match by ID (e.g., "100-200")
+    return price_range_map[normalized_body] if price_range_map.key?(normalized_body)
+
+    # Try to match by partial text (e.g., "$100–200 MXN", "100-200", "100 200")
+    price_range_map.each do |id, full_text|
+      # Check if body contains the ID pattern
+      return full_text if normalized_body.include?(id)
+
+      # Check if body contains the full text
+      return full_text if normalized_body.include?(full_text.downcase)
+
+      # Check for variations like "100 200" or "100 a 200"
+      if id.include?("-")
+        range_parts = id.split("-")
+        return full_text if normalized_body.include?(range_parts.join(" ")) ||
+                           normalized_body.include?("#{range_parts[0]} a #{range_parts[1]}")
+      end
+    end
+
+    # Check for "más de 600" or "600+" variations
+    return price_range_map["600+"] if normalized_body.match?(/m[aá]s\s+de\s+600|600\s*\+/)
+
+    nil
   end
 
   def find_selected_category_index(body, categories)

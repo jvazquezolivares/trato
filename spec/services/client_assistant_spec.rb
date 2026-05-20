@@ -12,7 +12,7 @@ RSpec.describe ClientAssistant do
       city: "Veracruz",
       short_uuid: "a3f8c2d1",
       service_area: "Boca del Río, Centro",
-      base_price: 300,
+      base_price: "$200–400 MXN",
       bio: "Electricista con 8 años de experiencia",
       slug: "electricistas-en-veracruz/miguel-garcia-electricista-a3f8c2d1",
       assistant_whatsapp_link: "https://wa.me/522221234567?text=a3f8c2d1"
