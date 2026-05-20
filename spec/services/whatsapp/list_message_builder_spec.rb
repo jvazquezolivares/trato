@@ -1639,4 +1639,143 @@ RSpec.describe WhatsApp::ListMessageBuilder do
       end
     end
   end
+
+  describe ".build_primary_trade_list" do
+    let(:categories) { %w[Fontanero Electricista Albañil] }
+
+    context "with multiple categories" do
+      it "returns a valid List Message payload" do
+        result = described_class.build_primary_trade_list(categories)
+
+        expect(result).to be_a(Hash)
+        expect(result[:type]).to eq("list")
+      end
+
+      it "includes header with title" do
+        result = described_class.build_primary_trade_list(categories)
+
+        expect(result[:header]).to eq({ type: "text", text: "Oficio principal" })
+      end
+
+      it "includes body text asking about frequency" do
+        result = described_class.build_primary_trade_list(categories)
+
+        expect(result[:body]).to eq({ text: "¿Cuál haces con más frecuencia?" })
+      end
+
+      it "includes action with button label" do
+        result = described_class.build_primary_trade_list(categories)
+
+        expect(result[:action][:button]).to eq("Ver opciones")
+      end
+
+      it "includes sections with categories" do
+        result = described_class.build_primary_trade_list(categories)
+
+        expect(result[:action][:sections]).to be_an(Array)
+        expect(result[:action][:sections].length).to eq(1)
+      end
+
+      it "includes section with title" do
+        result = described_class.build_primary_trade_list(categories)
+        section = result[:action][:sections].first
+
+        expect(section[:title]).to eq("Selecciona uno")
+      end
+
+      it "includes rows with all categories" do
+        result = described_class.build_primary_trade_list(categories)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.length).to eq(4) # 3 categories + 1 "all equal" option
+      end
+
+      it "includes category rows with correct IDs" do
+        result = described_class.build_primary_trade_list(categories)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows[0][:id]).to eq("category_0")
+        expect(rows[1][:id]).to eq("category_1")
+        expect(rows[2][:id]).to eq("category_2")
+      end
+
+      it "includes category rows with correct titles" do
+        result = described_class.build_primary_trade_list(categories)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows[0][:title]).to eq("Fontanero")
+        expect(rows[1][:title]).to eq("Electricista")
+        expect(rows[2][:title]).to eq("Albañil")
+      end
+
+      it "includes 'all equal frequency' option as last row" do
+        result = described_class.build_primary_trade_list(categories)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.last[:id]).to eq("all_equal")
+        expect(rows.last[:title]).to eq("Todos igual frec.")
+      end
+
+      it "truncates 'all equal frequency' option to fit 20-char limit" do
+        result = described_class.build_primary_trade_list(categories)
+        rows = result[:action][:sections].first[:rows]
+
+        # "Todos los hago con la misma frecuencia" is too long (42 chars)
+        # Should be truncated to "Todos igual frec." (18 chars)
+        expect(rows.last[:title].length).to be <= 20
+      end
+    end
+
+    context "with long category names" do
+      let(:long_categories) { ["Instalaciones hidráulicas", "Reparaciones eléctricas"] }
+
+      it "truncates category names that exceed 20 characters" do
+        result = described_class.build_primary_trade_list(long_categories)
+        rows = result[:action][:sections].first[:rows]
+
+        rows[0...-1].each do |row| # Exclude last "all equal" option
+          expect(row[:title].length).to be <= 20
+        end
+      end
+
+      it "adds ellipsis to truncated category names" do
+        result = described_class.build_primary_trade_list(long_categories)
+        rows = result[:action][:sections].first[:rows]
+
+        # "Instalaciones hidráulicas" (26 chars) should be truncated
+        expect(rows[0][:title]).to end_with("…")
+      end
+    end
+
+    context "with two categories" do
+      let(:two_categories) { %w[Fontanero Electricista] }
+
+      it "includes 3 rows total (2 categories + 1 all equal option)" do
+        result = described_class.build_primary_trade_list(two_categories)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.length).to eq(3)
+      end
+    end
+
+    context "requirement validation" do
+      it "includes 'Todos los hago con la misma frecuencia' option (AC1)" do
+        result = described_class.build_primary_trade_list(categories)
+        rows = result[:action][:sections].first[:rows]
+
+        # Requirement 5 AC1: System SHALL include the option "Todos los hago con la misma frecuencia"
+        all_equal_option = rows.find { |row| row[:id] == "all_equal" }
+        expect(all_equal_option).to be_present
+        expect(all_equal_option[:title]).to include("Todos")
+      end
+
+      it "uses List Message format for 4+ options" do
+        result = described_class.build_primary_trade_list(categories)
+
+        # With 3 categories + 1 "all equal" = 4 options
+        # Quick Reply Buttons limited to 3, so List Message is required
+        expect(result[:type]).to eq("list")
+      end
+    end
+  end
 end

@@ -381,6 +381,212 @@ RSpec.describe OnboardingService do
           message: a_string_matching(/ciudad/i)
         )
       end
+
+      context "when provider has multiple categories" do
+        before do
+          allow(WhatsAppService).to receive(:send_list_message).and_return(true)
+        end
+
+        it "sends primary trade selection List Message" do
+          described_class.call(from: phone, body: "fontanero, electricista, albañil")
+
+          expect(WhatsAppService).to have_received(:send_list_message).with(
+            to: phone,
+            payload: a_hash_including(
+              type: "list",
+              header: a_hash_including(text: "Oficio principal")
+            )
+          )
+        end
+
+        it "transitions to collecting_primary_trade stage" do
+          described_class.call(from: phone, body: "fontanero, electricista")
+
+          expect(redis_mock).to have_received(:setex).with(
+            "onboarding_state:#{phone}",
+            86_400,
+            a_string_matching(/"stage":"collecting_primary_trade"/)
+          )
+        end
+
+        it "includes all categories in the List Message" do
+          described_class.call(from: phone, body: "fontanero, electricista, albañil")
+
+          expect(WhatsAppService).to have_received(:send_list_message) do |args|
+            payload = args[:payload]
+            rows = payload[:action][:sections][0][:rows]
+
+            # Should have 3 categories + 1 "all equal" option = 4 rows
+            expect(rows.length).to eq(4)
+            expect(rows.last[:id]).to eq("all_equal")
+          end
+        end
+      end
+
+      context "when provider has single category" do
+        it "skips primary trade selection and goes directly to city" do
+          described_class.call(from: phone, body: "fontanero")
+
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: phone,
+            message: a_string_matching(/ciudad/i)
+          )
+        end
+
+        it "does not send primary trade List Message" do
+          allow(WhatsAppService).to receive(:send_list_message)
+
+          described_class.call(from: phone, body: "fontanero")
+
+          expect(WhatsAppService).not_to have_received(:send_list_message)
+        end
+      end
+    end
+
+    context "when collecting primary trade" do
+      before do
+        allow(redis_mock).to receive(:get)
+          .with("onboarding_state:#{phone}")
+          .and_return(redis_state(
+            stage: "collecting_primary_trade",
+            data: {
+              "name" => "Miguel",
+              "categories" => %w[fontanero electricista albañil]
+            }
+          ))
+        allow(redis_mock).to receive(:setex).and_return("OK")
+      end
+
+      it "stores primary_trade_index when specific category selected" do
+        described_class.call(from: phone, body: "electricista")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["primary_trade_index"]).to eq(1) if parsed["data"]["primary_trade_index"]
+        end
+      end
+
+      it "stores primary_trade_index as 0 when 'all equal' selected" do
+        described_class.call(from: phone, body: "Todos con igual frecuencia")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["primary_trade_index"]).to eq(0) if parsed["data"]["primary_trade_index"]
+        end
+      end
+
+      it "handles 'todos' keyword for all equal option" do
+        described_class.call(from: phone, body: "todos")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["primary_trade_index"]).to eq(0) if parsed["data"]["primary_trade_index"]
+        end
+      end
+
+      it "handles 'igual' keyword for all equal option" do
+        described_class.call(from: phone, body: "igual frecuencia")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["primary_trade_index"]).to eq(0) if parsed["data"]["primary_trade_index"]
+        end
+      end
+
+      it "handles 'all_equal' list message ID for all equal option" do
+        described_class.call(from: phone, body: "all_equal")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["primary_trade_index"]).to eq(0) if parsed["data"]["primary_trade_index"]
+        end
+      end
+
+      it "sets first category as primary when all equal option selected" do
+        described_class.call(from: phone, body: "all_equal")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          # First category (fontanero at index 0) should be primary
+          expect(parsed["data"]["primary_trade_index"]).to eq(0) if parsed["data"]["primary_trade_index"]
+        end
+      end
+
+      it "asks for city after primary trade selection" do
+        described_class.call(from: phone, body: "electricista")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/ciudad/i)
+        )
+      end
+
+      it "handles category_X format from List Message ID" do
+        described_class.call(from: phone, body: "category_2")
+
+        expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+          parsed = JSON.parse(json)
+          expect(parsed["data"]["primary_trade_index"]).to eq(2) if parsed["data"]["primary_trade_index"]
+        end
+      end
+
+      it "prompts to select from list when category not recognized" do
+        described_class.call(from: phone, body: "carpintero")
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: phone,
+          message: a_string_matching(/no entendí.*lista/i)
+        )
+      end
+
+      context "when testing equal frequency selection flow" do
+        it "correctly flows from 'all equal' selection to city collection" do
+          described_class.call(from: phone, body: "all_equal")
+
+          # Verify primary_trade_index is set to 0
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["data"]["primary_trade_index"]).to eq(0) if parsed["data"]["primary_trade_index"]
+          end
+
+          # Verify stage transitions to collecting_city
+          expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+            parsed = JSON.parse(json)
+            expect(parsed["stage"]).to eq("collecting_city") if parsed["stage"] == "collecting_city"
+          end
+
+          # Verify city question is asked
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: phone,
+            message: a_string_matching(/ciudad/i)
+          )
+        end
+
+        it "handles various 'all equal' keyword variations" do
+          variations = [
+            "all_equal",
+            "todos",
+            "Todos con igual frecuencia",
+            "igual frecuencia",
+            "todos igual",
+            "TODOS"
+          ]
+
+          variations.each do |variation|
+            # Reset mocks for each iteration
+            allow(redis_mock).to receive(:setex).and_return("OK")
+            allow(WhatsAppService).to receive(:send_message).and_return(true)
+
+            described_class.call(from: phone, body: variation)
+
+            # Verify primary_trade_index is set to 0 for each variation
+            expect(redis_mock).to have_received(:setex).at_least(:once) do |_key, _ttl, json|
+              parsed = JSON.parse(json)
+              expect(parsed["data"]["primary_trade_index"]).to eq(0) if parsed["data"]["primary_trade_index"]
+            end
+          end
+        end
+      end
     end
 
     context "when collecting city" do
@@ -844,6 +1050,42 @@ RSpec.describe OnboardingService do
       end
 
       it "creates categories with first as primary" do
+        described_class.call(from: phone, body: "miguel@gmail.com")
+
+        expect(provider_categories_relation).to have_received(:build).with(
+          hash_including(name: "Fontanero", slug: "fontanero", primary: true)
+        )
+        expect(provider_categories_relation).to have_received(:build).with(
+          hash_including(name: "Electricista", slug: "electricista", primary: false)
+        )
+      end
+
+      it "creates categories with selected primary when primary_trade_index is set" do
+        # Update complete_data to include primary_trade_index
+        data_with_primary = complete_data.merge("primary_trade_index" => 1)
+
+        allow(redis_mock).to receive(:get)
+          .with("onboarding_state:#{phone}")
+          .and_return(redis_state(stage: "collecting_email", data: data_with_primary))
+
+        described_class.call(from: phone, body: "miguel@gmail.com")
+
+        expect(provider_categories_relation).to have_received(:build).with(
+          hash_including(name: "Fontanero", slug: "fontanero", primary: false)
+        )
+        expect(provider_categories_relation).to have_received(:build).with(
+          hash_including(name: "Electricista", slug: "electricista", primary: true)
+        )
+      end
+
+      it "creates categories with first as primary when 'all equal' selected (primary_trade_index = 0)" do
+        # Update complete_data to include primary_trade_index = 0 (all equal frequency)
+        data_with_all_equal = complete_data.merge("primary_trade_index" => 0)
+
+        allow(redis_mock).to receive(:get)
+          .with("onboarding_state:#{phone}")
+          .and_return(redis_state(stage: "collecting_email", data: data_with_all_equal))
+
         described_class.call(from: phone, body: "miguel@gmail.com")
 
         expect(provider_categories_relation).to have_received(:build).with(

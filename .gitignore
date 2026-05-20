@@ -36,3 +36,7 @@
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+# Ignore task implementation summary files
+*SUMMARY.md
+*_SUMMARY.md

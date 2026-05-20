@@ -242,6 +242,44 @@ module WhatsApp
       }
     end
 
+    # Builds a List Message with primary trade selection options.
+    # Used in provider onboarding flow (P2B) when provider has multiple categories.
+    #
+    # @param categories [Array<String>] Array of category names
+    # @return [Hash] List Message payload for Meta Cloud API
+    def self.build_primary_trade_list(categories)
+      # Build rows for each category
+      category_rows = categories.map.with_index do |category, index|
+        { id: "category_#{index}", title: truncate_label(category) }
+      end
+
+      # Add "all equal frequency" option
+      category_rows << {
+        id: "all_equal",
+        title: "Todos igual frec."
+      }
+
+      {
+        type: "list",
+        header: {
+          type: "text",
+          text: "Oficio principal"
+        },
+        body: {
+          text: "¿Cuál haces con más frecuencia?"
+        },
+        action: {
+          button: "Ver opciones",
+          sections: [
+            {
+              title: "Selecciona uno",
+              rows: category_rows
+            }
+          ]
+        }
+      }
+    end
+
     # Truncates label to MAX_BUTTON_LABEL_LENGTH characters.
     # Meta Cloud API enforces 20-character limit for button labels.
     #

@@ -35,6 +35,7 @@ class OnboardingService
   FIELD_COLLECTION_STAGES = %w[
     collecting_name
     collecting_categories
+    collecting_primary_trade
     collecting_city
     collecting_area
     collecting_price
@@ -65,6 +66,8 @@ class OnboardingService
       collect_name
     when "collecting_categories"
       collect_categories
+    when "collecting_primary_trade"
+      collect_primary_trade
     when "collecting_city"
       collect_city
     when "collecting_area"
@@ -186,7 +189,47 @@ class OnboardingService
   def collect_categories
     return send_message("¿A qué te dedicas? Puedes mencionar varios oficios.") if @body.blank?
 
-    data["categories"] = parse_categories(@body)
+    categories = parse_categories(@body)
+    data["categories"] = categories
+
+    # If provider has multiple categories, ask them to select primary trade
+    if categories.length > 1
+      send_primary_trade_list(categories)
+      @state["stage"] = "collecting_primary_trade"
+      save_state
+    else
+      # Single category - automatically set as primary and continue
+      advance_to(
+        "collecting_city",
+        message: "¿En qué ciudad trabajas?"
+      )
+    end
+  end
+
+  def collect_primary_trade
+    return send_message("Por favor selecciona tu oficio principal de la lista.") if @body.blank?
+
+    categories = data["categories"]
+
+    # Check if provider selected "all equal frequency" option
+    # This can come as list message ID "all_equal" or text containing "todos"/"igual"
+    if @body.downcase == "all_equal" || @body.downcase.include?("todos") || @body.downcase.include?("igual")
+      # Set first category as primary when all trades have equal frequency
+      data["primary_trade_index"] = 0
+      save_state
+    else
+      # Find which category was selected
+      selected_index = find_selected_category_index(@body, categories)
+
+      if selected_index.nil?
+        send_message("No entendí cuál seleccionaste. Por favor elige de la lista.")
+        return
+      end
+
+      data["primary_trade_index"] = selected_index
+      save_state
+    end
+
     advance_to(
       "collecting_city",
       message: "¿En qué ciudad trabajas?"
@@ -486,11 +529,13 @@ class OnboardingService
 
   def create_categories(provider)
     categories = data["categories"] || []
+    primary_index = data["primary_trade_index"] || 0
+
     categories.each_with_index do |category_name, index|
       provider.provider_categories.build(
         name: category_name.strip.capitalize,
         slug: category_name.strip.downcase.parameterize,
-        primary: index.zero?
+        primary: index == primary_index
       )
     end
   end
@@ -599,6 +644,29 @@ class OnboardingService
   def send_decline_reasons_list
     payload = WhatsApp::ListMessageBuilder.build_decline_reasons_list
     WhatsAppService.send_list_message(to: @from, payload: payload)
+  end
+
+  def send_primary_trade_list(categories)
+    payload = WhatsApp::ListMessageBuilder.build_primary_trade_list(categories)
+    WhatsAppService.send_list_message(to: @from, payload: payload)
+  end
+
+  def find_selected_category_index(body, categories)
+    # Try to match the body against category names
+    normalized_body = body.downcase.strip
+
+    categories.each_with_index do |category, index|
+      normalized_category = category.downcase.strip
+      return index if normalized_body.include?(normalized_category)
+    end
+
+    # Try to extract index from "category_X" format (from list message ID)
+    if normalized_body.match(/category[_\s]?(\d+)/)
+      index = ::Regexp.last_match(1).to_i
+      return index if index >= 0 && index < categories.length
+    end
+
+    nil
   end
 
   def done_response?(text)
