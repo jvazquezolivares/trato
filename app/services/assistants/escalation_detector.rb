@@ -99,8 +99,15 @@ module Assistants
     def escalate!(reason:, detail: nil)
       @conversation.update!(stage: "escalated")
 
-      message = build_escalation_message(reason, detail)
-      WhatsAppService.send_message(to: @provider.phone, message: message)
+      # For danger situations with a client, send emergency-specific alerts to both parties
+      if reason == "danger" && @conversation.client.present?
+        send_client_emergency_alert
+        send_provider_emergency_alert
+      else
+        # For non-danger escalations, send general alert to provider only
+        provider_message = build_escalation_message(reason, detail)
+        WhatsAppService.send_message(to: @provider.phone, message: provider_message)
+      end
     end
 
     private
@@ -133,6 +140,56 @@ module Assistants
 
     def no_escalation
       { detected: false, reason: nil }
+    end
+
+    def send_client_emergency_alert
+      client = @conversation.client
+      client_name = client.name || "Cliente"
+
+      message = "🚨 #{client_name}, esto suena urgente. " \
+                "Aléjate del panel y llama a #{@provider.name} AHORA: " \
+                "📞 #{@provider.phone}. Si hay riesgo de incendio: llama al 911."
+
+      WhatsAppService.send_message(to: @from, message: message)
+
+      Rails.logger.info(
+        "[EscalationDetector] Sent emergency alert to client #{@from} " \
+        "for provider #{@provider.name}"
+      )
+    end
+
+    def send_provider_emergency_alert
+      client = @conversation.client
+      client_name = client.name || "Cliente"
+
+      # Extract the detected keyword from the body
+      detected_keyword = extract_danger_keyword(@body.downcase)
+
+      message = "🚨 URGENTE: Tu cliente #{client_name} reporta #{detected_keyword}. " \
+                "Su número: 📞 #{@from}. Contáctala de inmediato."
+
+      WhatsAppService.send_message(to: @provider.phone, message: message)
+
+      Rails.logger.info(
+        "[EscalationDetector] Sent emergency alert to provider #{@provider.phone} " \
+        "about client #{client_name} (#{@from})"
+      )
+    end
+
+    def extract_danger_keyword(normalized_body)
+      # Sort keywords by length (longest first) to match multi-word phrases before single words
+      sorted_keywords = DANGER_KEYWORDS.sort_by { |k| -k.length }
+
+      # Find the first matching danger keyword in the message
+      matched_keyword = sorted_keywords.find do |keyword|
+        if keyword.include?(" ") || keyword.length > 5
+          normalized_body.include?(keyword)
+        else
+          normalized_body.match?(/\b#{Regexp.escape(keyword)}\b/)
+        end
+      end
+
+      matched_keyword || "una emergencia"
     end
 
     def build_escalation_message(reason, detail)

@@ -90,6 +90,10 @@ RSpec.describe Assistants::EscalationDetector do
   end
 
   describe ".escalate!" do
+    before do
+      allow(conversation).to receive(:client).and_return(nil)
+    end
+
     it "updates conversation stage to escalated" do
       described_class.escalate!(
         conversation: conversation, provider: provider,
@@ -145,6 +149,333 @@ RSpec.describe Assistants::EscalationDetector do
         to: provider.phone,
         message: a_string_matching(/Cliente molesto/)
       )
+    end
+
+    context "when danger is detected and client exists" do
+      let(:client) { instance_double(Client, id: 1, name: "Mariana", phone: from) }
+
+      before do
+        allow(conversation).to receive(:client).and_return(client)
+        allow(Rails.logger).to receive(:info)
+      end
+
+      it "sends emergency alert to client" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: a_string_matching(/🚨 Mariana, esto suena urgente/)
+        )
+      end
+
+      it "sends emergency alert to provider with client name and keyword" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo en mi casa", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: a_string_matching(/🚨 URGENTE: Tu cliente Mariana reporta humo/)
+        )
+      end
+
+      it "includes client phone in provider emergency alert" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: a_string_matching(/Su número: 📞 #{from}/)
+        )
+      end
+
+      it "includes contact instruction in provider emergency alert" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: a_string_matching(/Contáctala de inmediato/)
+        )
+      end
+
+      it "includes provider name in client alert" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: a_string_matching(/llama a Miguel AHORA/)
+        )
+      end
+
+      it "includes provider phone in client alert" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: a_string_matching(/📞 5212211234567/)
+        )
+      end
+
+      it "includes 911 instruction in client alert" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: a_string_matching(/Si hay riesgo de incendio: llama al 911/)
+        )
+      end
+
+      it "sends two messages total (client alert + provider emergency alert)" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).exactly(2).times
+      end
+
+      it "sends both emergency messages synchronously within same processing cycle" do
+        # Track the order of message sends
+        call_order = []
+        allow(WhatsAppService).to receive(:send_message) do |args|
+          call_order << args[:to]
+        end
+
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        # Verify both messages were sent in the same method call (not async)
+        expect(call_order).to eq([from, provider.phone])
+        expect(WhatsAppService).to have_received(:send_message).exactly(2).times
+      end
+
+      it "logs the client emergency alert" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(Rails.logger).to have_received(:info).with(
+          a_string_matching(/Sent emergency alert to client #{from}/)
+        )
+      end
+
+      it "logs the provider emergency alert" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(Rails.logger).to have_received(:info).with(
+          a_string_matching(/Sent emergency alert to provider #{provider.phone}/)
+        )
+      end
+
+      it "extracts multi-word danger keywords correctly" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay una fuga de gas", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: a_string_matching(/reporta fuga de gas/)
+        )
+      end
+
+      it "uses fallback keyword when no specific match found" do
+        # This shouldn't happen in practice, but tests the fallback
+        allow_any_instance_of(described_class).to receive(:extract_danger_keyword).and_return("una emergencia")
+
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Situación peligrosa", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: a_string_matching(/reporta una emergencia/)
+        )
+      end
+
+      context "when client has no name" do
+        let(:client) { instance_double(Client, id: 1, name: nil, phone: from) }
+
+        it "uses 'Cliente' as fallback name in client alert" do
+          described_class.escalate!(
+            conversation: conversation, provider: provider,
+            from: from, body: "Hay humo", reason: "danger"
+          )
+
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: from,
+            message: a_string_matching(/🚨 Cliente, esto suena urgente/)
+          )
+        end
+
+        it "uses 'Cliente' as fallback name in provider alert" do
+          described_class.escalate!(
+            conversation: conversation, provider: provider,
+            from: from, body: "Hay humo", reason: "danger"
+          )
+
+          expect(WhatsAppService).to have_received(:send_message).with(
+            to: provider.phone,
+            message: a_string_matching(/Tu cliente Cliente reporta/)
+          )
+        end
+      end
+    end
+
+    context "when danger is detected but no client exists" do
+      before do
+        allow(conversation).to receive(:client).and_return(nil)
+      end
+
+      it "only sends message to provider" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Hay humo", reason: "danger"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).once
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: a_string_matching(/URGENTE/)
+        )
+      end
+    end
+
+    context "when non-danger escalation occurs" do
+      let(:client) { instance_double(Client, id: 1, name: "Mariana", phone: from) }
+
+      before do
+        allow(conversation).to receive(:client).and_return(client)
+      end
+
+      it "does not send emergency alert to client for complaint" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Quedó mal", reason: "complaint"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).once
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: a_string_matching(/Queja de cliente/)
+        )
+      end
+
+      it "does not send emergency alert to client for price_negotiation" do
+        described_class.escalate!(
+          conversation: conversation, provider: provider,
+          from: from, body: "Muy caro", reason: "price_negotiation"
+        )
+
+        expect(WhatsAppService).to have_received(:send_message).once
+      end
+    end
+  end
+
+  describe "emergency notification integration" do
+    let(:client) { instance_double(Client, id: 1, name: "Mariana", phone: from) }
+
+    before do
+      allow(conversation).to receive(:client).and_return(client)
+      allow(conversation).to receive(:update!).and_return(true)
+      allow(WhatsAppService).to receive(:send_message).and_return(true)
+      allow(Rails.logger).to receive(:info)
+    end
+
+    context "when emergency is detected and escalated in one flow" do
+      it "detects danger, escalates, and sends both alerts synchronously" do
+        # Step 1: Detect danger
+        detection_result = described_class.call(
+          body: "Hay humo y chispas en el panel eléctrico",
+          from: from,
+          provider: provider,
+          conversation: conversation
+        )
+
+        expect(detection_result).to eq({ detected: true, reason: "danger" })
+
+        # Step 2: Escalate (this would normally be called by the orchestrator)
+        described_class.escalate!(
+          conversation: conversation,
+          provider: provider,
+          from: from,
+          body: "Hay humo y chispas en el panel eléctrico",
+          reason: "danger"
+        )
+
+        # Verify conversation was escalated
+        expect(conversation).to have_received(:update!).with(stage: "escalated")
+
+        # Verify both emergency messages were sent synchronously
+        expect(WhatsAppService).to have_received(:send_message).exactly(2).times
+
+        # Verify client received emergency alert
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: a_string_matching(/🚨 Mariana, esto suena urgente.*llama a Miguel AHORA.*📞 5212211234567.*Si hay riesgo de incendio: llama al 911/m)
+        )
+
+        # Verify provider received emergency alert with detected keyword
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: provider.phone,
+          message: a_string_matching(/🚨 URGENTE: Tu cliente Mariana reporta (humo|chispas).*Su número: 📞 #{from}.*Contáctala de inmediato/m)
+        )
+
+        # Verify logging occurred
+        expect(Rails.logger).to have_received(:info).with(
+          a_string_matching(/Sent emergency alert to client #{from}/)
+        )
+        expect(Rails.logger).to have_received(:info).with(
+          a_string_matching(/Sent emergency alert to provider #{provider.phone}/)
+        )
+      end
+
+      it "sends messages in correct order: client first, then provider" do
+        call_order = []
+        allow(WhatsAppService).to receive(:send_message) do |args|
+          call_order << { to: args[:to], message_type: args[:message].include?("🚨") ? "emergency" : "general" }
+        end
+
+        described_class.escalate!(
+          conversation: conversation,
+          provider: provider,
+          from: from,
+          body: "Hay una fuga de gas",
+          reason: "danger"
+        )
+
+        # Verify order: client emergency alert first, then provider emergency alert
+        expect(call_order.length).to eq(2)
+        expect(call_order[0][:to]).to eq(from)
+        expect(call_order[0][:message_type]).to eq("emergency")
+        expect(call_order[1][:to]).to eq(provider.phone)
+        expect(call_order[1][:message_type]).to eq("emergency")
+      end
     end
   end
 end
