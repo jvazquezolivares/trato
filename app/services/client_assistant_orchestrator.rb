@@ -653,11 +653,137 @@ class ClientAssistantOrchestrator
                "Ahora vamos a agendar tu cita..."
     )
 
-    # Note: C1A dynamic availability flow (Tasks 18-19) will be triggered
-    # when the client responds to this message. The conversation stage
-    # "appointment_scheduling" will route subsequent messages through
-    # the standard ClientAssistantOrchestrator#process flow with the
-    # provider context set.
+    # Query provider's WorkDay for tomorrow (or next available day)
+    work_day = find_next_available_work_day(provider)
+
+    if work_day.present?
+      # WorkDay exists - proceed to show available slots (Task 18.3)
+      Rails.logger.info("[ClientAssistantOrchestrator] Found WorkDay for #{provider.name} on #{work_day.date}")
+
+      # Query existing appointments for this WorkDay
+      existing_appointments = query_appointments_for_work_day(work_day)
+
+      Rails.logger.info("[ClientAssistantOrchestrator] Found #{existing_appointments.count} existing appointments for WorkDay #{work_day.id}")
+
+      # Generate available slots minus taken slots (Task 18.4)
+      available_slots = generate_available_slots(work_day, existing_appointments)
+
+      Rails.logger.info("[ClientAssistantOrchestrator] Generated #{available_slots.count} available slots for WorkDay #{work_day.id}")
+
+      # TODO: Task 19 - Display available slots as List Message
+    else
+      # No WorkDay exists - show escalation message (Task 19)
+      send_no_work_day_escalation(provider)
+    end
+  end
+
+  # Find the provider's next available WorkDay starting from tomorrow
+  # @param provider [Provider] The provider to query
+  # @return [WorkDay, nil] The next available WorkDay or nil if none found
+  def find_next_available_work_day(provider)
+    # Start searching from tomorrow
+    start_date = Date.tomorrow
+
+    # Search for the next 7 days (reasonable window for appointment scheduling)
+    (0..6).each do |days_ahead|
+      search_date = start_date + days_ahead.days
+
+      work_day = provider.work_days.find_by(date: search_date)
+
+      # Return the first WorkDay found
+      return work_day if work_day.present?
+    end
+
+    # No WorkDay found in the next 7 days
+    nil
+  end
+
+  # Query existing appointments for a specific WorkDay
+  # Returns appointments that are confirmed or pending (not cancelled)
+  # @param work_day [WorkDay] The WorkDay to query appointments for
+  # @return [ActiveRecord::Relation] Appointments for this WorkDay
+  def query_appointments_for_work_day(work_day)
+    # Query appointments associated with this WorkDay
+    # Exclude cancelled appointments as they don't block time slots
+    work_day.appointments
+            .where.not(status: "cancelled")
+            .order(:scheduled_at)
+  end
+
+  # Generate available time slots for a WorkDay minus taken appointment slots
+  # Creates hourly slots from work_day.starts_at to work_day.ends_at
+  # Excludes slots that overlap with existing appointments
+  # @param work_day [WorkDay] The WorkDay to generate slots for
+  # @param appointments [ActiveRecord::Relation] Existing appointments for this WorkDay
+  # @return [Array<Hash>] Array of available slot hashes with :time and :display_time
+  def generate_available_slots(work_day, appointments)
+    # Extract start and end times from WorkDay
+    start_time = work_day.starts_at
+    end_time = work_day.ends_at
+
+    # Validate that start_time and end_time are present
+    if start_time.blank? || end_time.blank?
+      Rails.logger.warn("[ClientAssistantOrchestrator] WorkDay #{work_day.id} missing start or end time")
+      return []
+    end
+
+    # Generate all possible hourly slots
+    all_slots = []
+    current_time = start_time
+
+    while current_time < end_time
+      # Create a DateTime for this slot on the WorkDay's date
+      slot_datetime = Time.zone.parse("#{work_day.date} #{current_time}")
+
+      all_slots << {
+        time: slot_datetime,
+        display_time: slot_datetime.strftime("%H:%M") # e.g., "09:00"
+      }
+
+      # Move to next hour
+      current_time += 1.hour
+    end
+
+    # Filter out slots that overlap with existing appointments
+    available_slots = all_slots.reject do |slot|
+      slot_taken?(slot[:time], appointments)
+    end
+
+    available_slots
+  end
+
+  # Check if a time slot is taken by any existing appointment
+  # A slot is considered taken if it falls within the appointment's time range
+  # (scheduled_at to scheduled_at + estimated_duration)
+  # @param slot_time [Time] The slot time to check
+  # @param appointments [ActiveRecord::Relation] Existing appointments
+  # @return [Boolean] True if slot is taken, false otherwise
+  def slot_taken?(slot_time, appointments)
+    appointments.any? do |appointment|
+      appointment_start = appointment.scheduled_at
+      appointment_end = appointment_start + appointment.estimated_duration.minutes
+
+      # Check if slot_time falls within the appointment window
+      slot_time >= appointment_start && slot_time < appointment_end
+    end
+  end
+
+  # Send escalation message when provider has no WorkDay configured
+  # @param provider [Provider] The provider with no WorkDay
+  def send_no_work_day_escalation(provider)
+    message = "#{provider.name} no tiene su agenda configurada para mañana. " \
+              "¿Quieres que le avise para que te contacte directamente?"
+
+    WhatsAppService.send_message_with_buttons(
+      to: @from,
+      message: message,
+      buttons: [
+        { id: "escalate_yes", title: "Sí, avísale" },
+        { id: "escalate_no", title: "No, gracias" }
+      ]
+    )
+
+    Rails.logger.info("[ClientAssistantOrchestrator] No WorkDay found for #{provider.name}. Sent escalation message to #{@from}")
   end
 
   # Clear search context from Redis
