@@ -1904,4 +1904,449 @@ RSpec.describe WhatsApp::ListMessageBuilder do
       end
     end
   end
+
+  describe ".build_provider_results_list" do
+    let(:zone) { "Centro Histórico" }
+    let(:category) { "Plomería" }
+
+    # Create test providers with reviews
+    let!(:provider1) do
+      provider = create(:provider, name: "Miguel Hernández", city: "Veracruz", active: true)
+      create(:provider_category, provider: provider, name: "Plomería", slug: "plomeria", primary: true)
+      create_list(:review, 3, provider: provider, rating: 5)
+      provider
+    end
+
+    let!(:provider2) do
+      provider = create(:provider, name: "Juan Pérez", city: "Veracruz", active: true)
+      create(:provider_category, provider: provider, name: "Plomería", slug: "plomeria", primary: true)
+      create_list(:review, 2, provider: provider, rating: 4)
+      provider
+    end
+
+    let!(:provider3) do
+      provider = create(:provider, name: "Carlos López", city: "Veracruz", active: true)
+      create(:provider_category, provider: provider, name: "Plomería", slug: "plomeria", primary: true)
+      # No reviews
+      provider
+    end
+
+    let(:providers) { Provider.where(id: [provider1.id, provider2.id, provider3.id]) }
+
+    context "with less than 10 providers" do
+      it "returns a valid List Message payload" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        expect(result).to be_a(Hash)
+        expect(result[:type]).to eq("list")
+      end
+
+      it "includes header with title" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        expect(result[:header]).to eq({ type: "text", text: "Técnicos disponibles" })
+      end
+
+      it "includes body text with count, category, and zone" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        expect(result[:body][:text]).to eq("Encontré 3 técnicos de Plomería en Centro Histórico")
+      end
+
+      it "uses singular 'técnico' when count is 1" do
+        single_provider = Provider.where(id: provider1.id)
+        result = described_class.build_provider_results_list(single_provider, zone: zone, category: category)
+
+        expect(result[:body][:text]).to eq("Encontré 1 técnico de Plomería en Centro Histórico")
+      end
+
+      it "includes action with button label" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        expect(result[:action][:button]).to eq("Ver opciones")
+      end
+
+      it "includes sections with providers" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        expect(result[:action][:sections]).to be_an(Array)
+        expect(result[:action][:sections].length).to eq(1)
+      end
+
+      it "includes section with title" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        section = result[:action][:sections].first
+
+        expect(section[:title]).to eq("Selecciona uno")
+      end
+
+      it "includes rows with all providers" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.length).to eq(3)
+      end
+
+      it "formats each provider with id, title, and description" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row).to have_key(:id)
+          expect(row).to have_key(:title)
+          expect(row).to have_key(:description)
+        end
+      end
+
+      it "includes provider ID in row id" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows[0][:id]).to eq("provider_#{provider1.id}")
+        expect(rows[1][:id]).to eq("provider_#{provider2.id}")
+        expect(rows[2][:id]).to eq("provider_#{provider3.id}")
+      end
+
+      it "includes provider name and rating in title" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        # Provider 1 has 3 reviews with rating 5
+        expect(rows[0][:title]).to include("Miguel")
+        expect(rows[0][:title]).to include("⭐")
+
+        # Provider 2 has 2 reviews with rating 4
+        expect(rows[1][:title]).to include("Juan")
+        expect(rows[1][:title]).to include("⭐")
+
+        # Provider 3 has no reviews
+        expect(rows[2][:title]).to include("Carlos")
+        expect(rows[2][:title]).to include("Sin")
+      end
+
+      it "includes primary category and city in description" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row[:description]).to include("Plomería")
+          expect(row[:description]).to include("Veracruz")
+          expect(row[:description]).to include("•")
+        end
+      end
+
+      it "respects 20-character title limit" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row[:title].length).to be <= 20
+        end
+      end
+
+      it "respects 72-character description limit" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row[:description].length).to be <= 72
+        end
+      end
+
+      it "does not include 'Ver más' option when less than 10 providers" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        ver_mas_option = rows.find { |r| r[:id].start_with?("ver_mas_providers") }
+        expect(ver_mas_option).to be_nil
+      end
+    end
+
+    context "with more than 10 providers" do
+      let!(:additional_providers) do
+        (4..15).map do |i|
+          provider = create(:provider, name: "Provider #{i}", city: "Veracruz", active: true)
+          create(:provider_category, provider: provider, name: "Plomería", slug: "plomeria", primary: true)
+          provider
+        end
+      end
+
+      let(:many_providers) { Provider.where(id: [provider1.id, provider2.id, provider3.id] + additional_providers.map(&:id)) }
+
+      it "returns only first 10 providers on page 1" do
+        result = described_class.build_provider_results_list(many_providers, page: 1, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        # 10 providers + 1 "Ver más" option = 11 rows
+        expect(rows.length).to eq(11)
+      end
+
+      it "includes 'Ver más' option when more than 10 providers" do
+        result = described_class.build_provider_results_list(many_providers, page: 1, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        ver_mas_option = rows.last
+        expect(ver_mas_option[:id]).to eq("ver_mas_providers_page_2")
+        expect(ver_mas_option[:title]).to eq("Ver más técnicos")
+        expect(ver_mas_option[:description]).to eq("Mostrar más resultados")
+      end
+
+      it "returns next 10 providers on page 2" do
+        result = described_class.build_provider_results_list(many_providers, page: 2, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        # 15 total - 10 on page 1 = 5 on page 2
+        expect(rows.length).to eq(5)
+      end
+
+      it "does not include 'Ver más' option on last page" do
+        result = described_class.build_provider_results_list(many_providers, page: 2, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        ver_mas_option = rows.find { |r| r[:id].start_with?("ver_mas_providers") }
+        expect(ver_mas_option).to be_nil
+      end
+
+      it "updates body text with total count across all pages" do
+        result = described_class.build_provider_results_list(many_providers, page: 1, zone: zone, category: category)
+
+        expect(result[:body][:text]).to eq("Encontré 15 técnicos de Plomería en Centro Histórico")
+      end
+    end
+
+    context "with provider without primary category" do
+      let!(:provider_no_primary) do
+        provider = create(:provider, name: "Sin Categoría", city: "Veracruz", active: true)
+        create(:provider_category, provider: provider, name: "Plomería", slug: "plomeria", primary: false)
+        provider
+      end
+
+      let(:providers_with_no_primary) { Provider.where(id: provider_no_primary.id) }
+
+      it "uses 'Técnico' as fallback category name" do
+        result = described_class.build_provider_results_list(providers_with_no_primary, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.first[:description]).to include("Técnico")
+      end
+    end
+
+    context "with long provider names" do
+      let!(:long_name_provider) do
+        provider = create(:provider, name: "Miguel Ángel Hernández García", city: "Veracruz", active: true)
+        create(:provider_category, provider: provider, name: "Plomería", slug: "plomeria", primary: true)
+        create(:review, provider: provider, rating: 5)
+        provider
+      end
+
+      let(:providers_with_long_name) { Provider.where(id: long_name_provider.id) }
+
+      it "truncates title to 20 characters" do
+        result = described_class.build_provider_results_list(providers_with_long_name, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.first[:title].length).to be <= 20
+        expect(rows.first[:title]).to end_with("…")
+      end
+    end
+
+    context "with long category or city names" do
+      let!(:long_category_provider) do
+        provider = create(:provider, name: "Juan", city: "Veracruz de Ignacio de la Llave", active: true)
+        create(:provider_category, provider: provider, name: "Instalaciones hidráulicas y sanitarias", slug: "plomeria", primary: true)
+        provider
+      end
+
+      let(:providers_with_long_category) { Provider.where(id: long_category_provider.id) }
+
+      it "truncates description to 72 characters if needed" do
+        result = described_class.build_provider_results_list(providers_with_long_category, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        # Description should not exceed 72 characters
+        expect(rows.first[:description].length).to be <= 72
+
+        # If original would exceed 72 chars, it should be truncated with ellipsis
+        original_description = "Instalaciones hidráulicas y sanitarias • Veracruz de Ignacio de la Llave"
+        if original_description.length > 72
+          expect(rows.first[:description]).to end_with("…")
+        end
+      end
+    end
+
+    context "Meta Cloud API compliance" do
+      it "returns payload matching Meta Cloud API List Message format" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        # Verify top-level structure
+        expect(result).to have_key(:type)
+        expect(result).to have_key(:header)
+        expect(result).to have_key(:body)
+        expect(result).to have_key(:action)
+
+        # Verify header structure
+        expect(result[:header]).to have_key(:type)
+        expect(result[:header]).to have_key(:text)
+
+        # Verify body structure
+        expect(result[:body]).to have_key(:text)
+
+        # Verify action structure
+        expect(result[:action]).to have_key(:button)
+        expect(result[:action]).to have_key(:sections)
+
+        # Verify sections structure
+        expect(result[:action][:sections]).to be_an(Array)
+        expect(result[:action][:sections].first).to have_key(:title)
+        expect(result[:action][:sections].first).to have_key(:rows)
+
+        # Verify rows structure
+        rows = result[:action][:sections].first[:rows]
+        rows.each do |row|
+          expect(row).to have_key(:id)
+          expect(row).to have_key(:title)
+          expect(row).to have_key(:description)
+        end
+      end
+
+      it "respects 20-character button label limit" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        expect(result[:action][:button].length).to be <= 20
+      end
+
+      it "respects 20-character row title limit" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row[:title].length).to be <= 20
+        end
+      end
+
+      it "respects 72-character row description limit" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row[:description].length).to be <= 72
+        end
+      end
+    end
+
+    context "requirement compliance" do
+      it "matches Requirement 9 acceptance criteria for provider results" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        # AC10: Query active Providers matching zone and category
+        # AC11: Display results as List Message
+        expect(result[:type]).to eq("list")
+        expect(result[:header][:text]).to eq("Técnicos disponibles")
+
+        rows = result[:action][:sections].first[:rows]
+        expect(rows.length).to be > 0
+      end
+
+      it "supports pagination for more than 10 results" do
+        # Create 15 providers
+        providers_list = (1..15).map do |i|
+          provider = create(:provider, name: "Provider #{i}", city: "Veracruz", active: true)
+          create(:provider_category, provider: provider, name: "Plomería", slug: "plomeria", primary: true)
+          provider
+        end
+
+        many_providers = Provider.where(id: providers_list.map(&:id))
+
+        # Page 1 should have 10 + "Ver más"
+        page_1_result = described_class.build_provider_results_list(many_providers, page: 1, zone: zone, category: category)
+        page_1_rows = page_1_result[:action][:sections].first[:rows]
+        expect(page_1_rows.length).to eq(11) # 10 providers + 1 "Ver más"
+
+        # Page 2 should have remaining 5
+        page_2_result = described_class.build_provider_results_list(many_providers, page: 2, zone: zone, category: category)
+        page_2_rows = page_2_result[:action][:sections].first[:rows]
+        expect(page_2_rows.length).to eq(5)
+      end
+
+      it "provides provider IDs that can be used for selection" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row[:id]).to match(/^provider_\d+$/)
+          provider_id = row[:id].gsub("provider_", "").to_i
+          expect(provider_id).to be > 0
+        end
+      end
+    end
+
+    context "integration with C2A flow" do
+      it "can be used after category selection in client discovery flow" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+
+        # Verify the payload is ready to be sent via WhatsApp service
+        expect(result[:type]).to eq("list")
+        expect(result[:action][:sections].first[:rows].length).to be > 0
+
+        # Verify all ids are suitable for provider selection
+        rows = result[:action][:sections].first[:rows]
+        rows.each do |row|
+          expect(row[:id]).to be_a(String)
+          expect(row[:id]).to match(/^provider_\d+$/)
+        end
+      end
+
+      it "displays provider information needed for client decision" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          # Title should have name and rating
+          expect(row[:title]).to be_present
+
+          # Description should have category and city
+          expect(row[:description]).to be_present
+          expect(row[:description]).to include("•")
+        end
+      end
+    end
+
+    context "rating display" do
+      it "displays average rating with star emoji" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        # Provider 1 has reviews - should include star emoji
+        expect(rows[0][:title]).to include("⭐")
+        # Title may be truncated, so just check for star presence
+      end
+
+      it "displays 'Sin reseñas' for providers without reviews" do
+        result = described_class.build_provider_results_list(providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        # Provider 3 has no reviews - should include "Sin" (may be truncated)
+        provider3_row = rows.find { |r| r[:id] == "provider_#{provider3.id}" }
+        expect(provider3_row[:title]).to include("Sin")
+      end
+
+      it "rounds rating to 1 decimal place" do
+        # Create provider with mixed ratings
+        provider = create(:provider, name: "Test", city: "Veracruz", active: true)
+        create(:provider_category, provider: provider, name: "Plomería", slug: "plomeria", primary: true)
+        create(:review, provider: provider, rating: 5)
+        create(:review, provider: provider, rating: 4)
+        create(:review, provider: provider, rating: 3)
+        # Average: 4.0
+
+        test_providers = Provider.where(id: provider.id)
+        result = described_class.build_provider_results_list(test_providers, zone: zone, category: category)
+        rows = result[:action][:sections].first[:rows]
+
+        # Should include star and rating (may be truncated)
+        expect(rows.first[:title]).to include("⭐")
+        expect(rows.first[:title]).to include("4.0")
+      end
+    end
+  end
 end

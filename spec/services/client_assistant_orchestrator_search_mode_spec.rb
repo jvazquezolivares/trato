@@ -1232,29 +1232,58 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
       allow(WhatsAppService).to receive(:send_list_message)
       allow(REDIS).to receive(:setex)
       allow(Rails.logger).to receive(:info)
+
+      # Mock provider query for Task 17 implementation
+      provider_relation = instance_double(ActiveRecord::Relation)
+      allow(Provider).to receive(:where).and_return(provider_relation)
+      allow(provider_relation).to receive(:joins).and_return(provider_relation)
+      allow(provider_relation).to receive(:where).and_return(provider_relation)
+      allow(provider_relation).to receive(:includes).and_return(provider_relation)
+      allow(provider_relation).to receive(:distinct).and_return(provider_relation)
+      allow(provider_relation).to receive(:count).and_return(5)
+      allow(provider_relation).to receive(:order).and_return(provider_relation)
+      allow(provider_relation).to receive(:offset).and_return(provider_relation)
+      allow(provider_relation).to receive(:limit).and_return(provider_relation)
+      allow(provider_relation).to receive(:empty?).and_return(false)
+      allow(provider_relation).to receive(:map).and_return([])
+
+      # Mock ZonesService for category name lookup
+      allow(ZonesService).to receive(:all_categories).and_return([
+        { "id" => "plomeria", "name" => "Plomería", "icon" => "🔧" },
+        { "id" => "electricidad", "name" => "Electricidad", "icon" => "⚡" },
+        { "id" => "construccion", "name" => "Construcción", "icon" => "🏗" }
+      ])
+
+      # Mock ListMessageBuilder
+      allow(WhatsApp::ListMessageBuilder).to receive(:build_provider_results_list).and_return(
+        {
+          type: "list",
+          header: { type: "text", text: "Técnicos disponibles" },
+          body: { text: "Encontré 5 técnicos" },
+          action: { button: "Ver opciones", sections: [] }
+        }
+      )
     end
 
     context "when user selects a category" do
       let(:body) { "plomeria" }
 
-      it "sends confirmation message with category and zone" do
+      it "queries providers and sends results List Message" do
         orchestrator.send(:handle_category_selection_response, search_context)
 
-        expect(WhatsAppService).to have_received(:send_message).with(
-          to: from,
-          message: "Perfecto, buscas plomeria en Centro Histórico. Estoy buscando técnicos disponibles..."
-        )
+        expect(Provider).to have_received(:where).with(active: true)
+        expect(WhatsAppService).to have_received(:send_list_message)
       end
 
-      it "logs category selection" do
+      it "logs category selection with provider count" do
         orchestrator.send(:handle_category_selection_response, search_context)
 
         expect(Rails.logger).to have_received(:info).with(
-          "[ClientAssistantOrchestrator] Category selected: plomeria for client #{from}"
+          "[ClientAssistantOrchestrator] Category selected: plomeria for client #{from}. Found 5 providers."
         )
       end
 
-      it "stores selected category in context" do
+      it "stores selected category in context with provider_selection stage" do
         orchestrator.send(:handle_category_selection_response, search_context)
 
         expect(REDIS).to have_received(:setex).with(
@@ -1265,18 +1294,19 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             region_scope: "state",
             selected_zone: "Centro Histórico",
             selected_category: "plomeria",
-            stage: "provider_query"
+            stage: "provider_selection",
+            provider_page: 1
           }.to_json
         )
       end
 
-      it "updates stage to provider_query" do
+      it "updates stage to provider_selection" do
         orchestrator.send(:handle_category_selection_response, search_context)
 
         # Verify the call was made with the correct stage
         expect(REDIS).to have_received(:setex) do |key, ttl, json_data|
           stored_context = JSON.parse(json_data, symbolize_names: true)
-          expect(stored_context[:stage]).to eq("provider_query")
+          expect(stored_context[:stage]).to eq("provider_selection")
         end
       end
     end
@@ -1284,16 +1314,14 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
     context "when user selects electricidad category" do
       let(:body) { "electricidad" }
 
-      it "sends confirmation with electricidad" do
+      it "queries providers and sends results" do
         orchestrator.send(:handle_category_selection_response, search_context)
 
-        expect(WhatsAppService).to have_received(:send_message).with(
-          to: from,
-          message: "Perfecto, buscas electricidad en Centro Histórico. Estoy buscando técnicos disponibles..."
-        )
+        expect(Provider).to have_received(:where).with(active: true)
+        expect(WhatsAppService).to have_received(:send_list_message)
       end
 
-      it "stores electricidad in context" do
+      it "stores electricidad in context with provider_selection stage" do
         orchestrator.send(:handle_category_selection_response, search_context)
 
         expect(REDIS).to have_received(:setex).with(
@@ -1304,7 +1332,8 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             region_scope: "state",
             selected_zone: "Centro Histórico",
             selected_category: "electricidad",
-            stage: "provider_query"
+            stage: "provider_selection",
+            provider_page: 1
           }.to_json
         )
       end
@@ -1446,16 +1475,14 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         }
       end
 
-      it "sends confirmation message" do
+      it "queries providers and sends results" do
         orchestrator.send(:handle_category_selection_response, search_context)
 
-        expect(WhatsAppService).to have_received(:send_message).with(
-          to: from,
-          message: "Perfecto, buscas construccion en Centro Histórico. Estoy buscando técnicos disponibles..."
-        )
+        expect(Provider).to have_received(:where).with(active: true)
+        expect(WhatsAppService).to have_received(:send_list_message)
       end
 
-      it "stores selected category and updates stage to provider_query" do
+      it "stores selected category and updates stage to provider_selection" do
         orchestrator.send(:handle_category_selection_response, search_context)
 
         expect(REDIS).to have_received(:setex).with(
@@ -1466,7 +1493,8 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             region_scope: "state",
             selected_zone: "Centro Histórico",
             selected_category: "construccion",
-            stage: "provider_query"
+            stage: "provider_selection",
+            provider_page: 1
           }.to_json
         )
       end
@@ -1538,6 +1566,654 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         orchestrator.send(:handle_search_flow_response, search_context)
 
         expect(orchestrator).to have_received(:handle_category_selection_response).with(search_context)
+      end
+    end
+  end
+
+  # Task 17.5: Handle provider selection
+  describe "#handle_provider_selection_response" do
+    let(:from) { "5212291234567" }
+    let(:orchestrator) { described_class.new_search_mode(from: from, body: body) }
+    let(:search_context) do
+      {
+        detected_state: "Veracruz",
+        region_scope: "state",
+        selected_zone: "Centro Histórico",
+        selected_category: "plomeria",
+        stage: "provider_selection",
+        provider_page: 1
+      }
+    end
+
+    before do
+      allow(WhatsAppService).to receive(:send_message)
+      allow(WhatsAppService).to receive(:send_list_message)
+      allow(REDIS).to receive(:setex)
+      allow(REDIS).to receive(:del)
+      allow(Rails.logger).to receive(:info)
+
+      # Mock provider query for pagination tests
+      provider_relation = instance_double(ActiveRecord::Relation)
+      allow(Provider).to receive(:where).and_return(provider_relation)
+      allow(provider_relation).to receive(:joins).and_return(provider_relation)
+      allow(provider_relation).to receive(:where).and_return(provider_relation)
+      allow(provider_relation).to receive(:includes).and_return(provider_relation)
+      allow(provider_relation).to receive(:distinct).and_return(provider_relation)
+      allow(provider_relation).to receive(:count).and_return(15)
+      allow(provider_relation).to receive(:left_joins).and_return(provider_relation)
+      allow(provider_relation).to receive(:group).and_return(provider_relation)
+      allow(provider_relation).to receive(:order).and_return(provider_relation)
+      allow(provider_relation).to receive(:offset).and_return(provider_relation)
+      allow(provider_relation).to receive(:limit).and_return(provider_relation)
+
+      # Mock ZonesService for category name lookup
+      allow(ZonesService).to receive(:all_categories).and_return([
+        { "id" => "plomeria", "name" => "Plomería", "icon" => "🔧" }
+      ])
+
+      # Mock ListMessageBuilder
+      allow(WhatsApp::ListMessageBuilder).to receive(:build_provider_results_list).and_return(
+        {
+          type: "list",
+          header: { type: "text", text: "Técnicos disponibles" },
+          body: { text: "Encontré 15 técnicos" },
+          action: { button: "Ver opciones", sections: [] }
+        }
+      )
+    end
+
+    context "when user selects a provider" do
+      let(:body) { "provider_123" }
+      let(:provider) { instance_double(Provider, id: 123, name: "Miguel Hernández", phone: "5212291234567") }
+      let(:client) { instance_double(Client, id: 1, phone: from, save!: true, new_record?: true) }
+      let(:conversation) { instance_double(Conversation, id: 1, stage: "active", context: {}, update!: true) }
+
+      before do
+        allow(Provider).to receive(:find_by).with(id: 123).and_return(provider)
+        allow(Client).to receive(:find_or_initialize_by).with(phone: from).and_return(client)
+        allow(Conversation).to receive(:find_or_create_by!).and_yield(conversation).and_return(conversation)
+        allow(conversation).to receive(:client=)
+        allow(conversation).to receive(:stage=)
+        allow(conversation).to receive(:context=)
+        allow(conversation).to receive(:last_message_at=)
+      end
+
+      it "extracts provider ID from selection" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Provider).to have_received(:find_by).with(id: 123)
+      end
+
+      it "finds or creates client record" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Client).to have_received(:find_or_initialize_by).with(phone: from)
+      end
+
+      it "creates new client if not exists" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(client).to have_received(:save!)
+      end
+
+      it "finds or creates conversation record" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Conversation).to have_received(:find_or_create_by!).with(
+          provider: provider,
+          phone: from,
+          role: "client"
+        )
+      end
+
+      it "sets conversation stage to appointment_scheduling" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(conversation).to have_received(:stage=).with("appointment_scheduling")
+      end
+
+      it "stores search context in conversation context" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(conversation).to have_received(:context=).with(
+          hash_including(
+            selected_zone: "Centro Histórico",
+            selected_category: "plomeria",
+            discovery_method: "c2a_region_based"
+          )
+        )
+      end
+
+      it "clears search context from Redis" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(REDIS).to have_received(:del).with("client_search:#{from}")
+      end
+
+      it "sends confirmation message" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "Perfecto, seleccionaste a Miguel Hernández. Ahora vamos a agendar tu cita..."
+        )
+      end
+
+      it "logs provider selection" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Rails.logger).to have_received(:info).with(
+          "[ClientAssistantOrchestrator] Provider selected: Miguel Hernández (ID: 123) for client #{from}. Transitioning to appointment flow."
+        )
+      end
+    end
+
+    context "when user selects a provider and client already exists" do
+      let(:body) { "provider_456" }
+      let(:provider) { instance_double(Provider, id: 456, name: "Juan Pérez", phone: "5212291111111") }
+      let(:client) { instance_double(Client, id: 2, phone: from, save!: true, new_record?: false) }
+      let(:conversation) { instance_double(Conversation, id: 2, stage: "active", context: {}, update!: true) }
+
+      before do
+        allow(Provider).to receive(:find_by).with(id: 456).and_return(provider)
+        allow(Client).to receive(:find_or_initialize_by).with(phone: from).and_return(client)
+        allow(Conversation).to receive(:find_or_create_by!).and_yield(conversation).and_return(conversation)
+        allow(conversation).to receive(:client=)
+        allow(conversation).to receive(:stage=)
+        allow(conversation).to receive(:context=)
+        allow(conversation).to receive(:last_message_at=)
+      end
+
+      it "does not save existing client" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(client).not_to have_received(:save!)
+      end
+
+      it "still creates conversation and transitions to appointment flow" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Conversation).to have_received(:find_or_create_by!)
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "Perfecto, seleccionaste a Juan Pérez. Ahora vamos a agendar tu cita..."
+        )
+      end
+    end
+
+    context "when user selects a provider and conversation already exists" do
+      let(:body) { "provider_789" }
+      let(:provider) { instance_double(Provider, id: 789, name: "Carlos López", phone: "5212292222222") }
+      let(:client) { instance_double(Client, id: 3, phone: from, save!: true, new_record?: false) }
+      let(:conversation) do
+        instance_double(
+          Conversation,
+          id: 3,
+          stage: "escalated",
+          context: { previous_data: "value" },
+          update!: true
+        )
+      end
+
+      before do
+        allow(Provider).to receive(:find_by).with(id: 789).and_return(provider)
+        allow(Client).to receive(:find_or_initialize_by).with(phone: from).and_return(client)
+        allow(Conversation).to receive(:find_or_create_by!).and_return(conversation)
+      end
+
+      it "updates existing conversation stage" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(conversation).to have_received(:update!).with(
+          hash_including(
+            stage: "appointment_scheduling"
+          )
+        )
+      end
+
+      it "merges new context with existing context" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(conversation).to have_received(:update!).with(
+          hash_including(
+            context: hash_including(
+              selected_zone: "Centro Histórico",
+              selected_category: "plomeria",
+              discovery_method: "c2a_region_based"
+            )
+          )
+        )
+      end
+    end
+
+    context "when provider is not found" do
+      let(:body) { "provider_999" }
+
+      before do
+        allow(Provider).to receive(:find_by).with(id: 999).and_return(nil)
+        allow(Client).to receive(:find_or_initialize_by)
+        allow(Conversation).to receive(:find_or_create_by!)
+      end
+
+      it "sends error message" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "Lo siento, no pude encontrar ese técnico. ¿Puedes seleccionar otro?"
+        )
+      end
+
+      it "does not create client or conversation" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Client).not_to have_received(:find_or_initialize_by)
+        expect(Conversation).not_to have_received(:find_or_create_by!)
+      end
+
+      it "does not clear search context" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(REDIS).not_to have_received(:del)
+      end
+
+      it "does not log provider selection" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Rails.logger).not_to have_received(:info).with(/Provider selected:/)
+      end
+    end
+
+    context "when user selects 'Ver más técnicos' for page 2" do
+      let(:body) { "ver_mas_providers_page_2" }
+
+      before do
+        allow(Client).to receive(:find_or_initialize_by)
+        allow(Conversation).to receive(:find_or_create_by!)
+      end
+
+      it "extracts page number from selection" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Provider).to have_received(:where).with(active: true)
+      end
+
+      it "sends provider results for page 2" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_list_message)
+      end
+
+      it "updates context with new page number" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(REDIS).to have_received(:setex).with(
+          "client_search:#{from}",
+          86_400,
+          {
+            detected_state: "Veracruz",
+            region_scope: "state",
+            selected_zone: "Centro Histórico",
+            selected_category: "plomeria",
+            stage: "provider_selection",
+            provider_page: 2
+          }.to_json
+        )
+      end
+
+      it "logs page 2 sent" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Rails.logger).to have_received(:info).with(
+          "[ClientAssistantOrchestrator] Sent provider results page 2 for client #{from}"
+        )
+      end
+
+      it "does not transition to appointment flow" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Client).not_to have_received(:find_or_initialize_by)
+        expect(Conversation).not_to have_received(:find_or_create_by!)
+      end
+    end
+
+    context "when user selects 'Ver más técnicos' for page 3" do
+      let(:body) { "ver_mas_providers_page_3" }
+
+      it "sends provider results for page 3" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_list_message)
+      end
+
+      it "updates context with page 3" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(REDIS).to have_received(:setex).with(
+          "client_search:#{from}",
+          86_400,
+          {
+            detected_state: "Veracruz",
+            region_scope: "state",
+            selected_zone: "Centro Histórico",
+            selected_category: "plomeria",
+            stage: "provider_selection",
+            provider_page: 3
+          }.to_json
+        )
+      end
+    end
+
+    context "when provider selection is blank" do
+      let(:body) { "" }
+
+      before do
+        allow(Client).to receive(:find_or_initialize_by)
+        allow(Conversation).to receive(:find_or_create_by!)
+      end
+
+      it "sends error message" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+        )
+      end
+
+      it "does not create client or conversation" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Client).not_to have_received(:find_or_initialize_by)
+        expect(Conversation).not_to have_received(:find_or_create_by!)
+      end
+    end
+
+    context "when provider selection is only whitespace" do
+      let(:body) { "   " }
+
+      it "sends error message" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+        )
+      end
+    end
+
+    context "when provider selection has invalid format" do
+      let(:body) { "invalid_selection" }
+
+      before do
+        allow(Provider).to receive(:find_by)
+        allow(Client).to receive(:find_or_initialize_by)
+        allow(Conversation).to receive(:find_or_create_by!)
+      end
+
+      it "sends error message" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+        )
+      end
+
+      it "does not attempt to find provider" do
+        orchestrator.send(:handle_provider_selection_response, search_context)
+
+        expect(Provider).not_to have_received(:find_by)
+      end
+    end
+  end
+
+  describe "#transition_to_appointment_flow" do
+    let(:from) { "5212291234567" }
+    let(:body) { "provider_123" }
+    let(:orchestrator) { described_class.new_search_mode(from: from, body: body) }
+    let(:provider) { instance_double(Provider, id: 123, name: "Miguel Hernández", phone: "5212291234567") }
+    let(:search_context) do
+      {
+        detected_state: "Veracruz",
+        region_scope: "state",
+        selected_zone: "Centro Histórico",
+        selected_category: "plomeria"
+      }
+    end
+
+    before do
+      allow(WhatsAppService).to receive(:send_message)
+      allow(REDIS).to receive(:del)
+      allow(Rails.logger).to receive(:info)
+    end
+
+    context "when creating new client and conversation" do
+      let(:client) { instance_double(Client, id: 1, phone: from, save!: true, new_record?: true) }
+      let(:conversation) { instance_double(Conversation, id: 1, stage: "active", context: {}, update!: true) }
+
+      before do
+        allow(Client).to receive(:find_or_initialize_by).with(phone: from).and_return(client)
+        allow(Conversation).to receive(:find_or_create_by!).and_yield(conversation).and_return(conversation)
+        allow(conversation).to receive(:client=)
+        allow(conversation).to receive(:stage=)
+        allow(conversation).to receive(:context=)
+        allow(conversation).to receive(:last_message_at=)
+        allow(conversation).to receive(:context).and_return({})
+      end
+
+      it "creates new client record" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(client).to have_received(:save!)
+      end
+
+      it "logs client creation" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(Rails.logger).to have_received(:info).with(
+          "[ClientAssistantOrchestrator] Created new client record for #{from}"
+        )
+      end
+
+      it "creates conversation with appointment_scheduling stage" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(conversation).to have_received(:stage=).with("appointment_scheduling")
+      end
+
+      it "stores discovery context in conversation" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(conversation).to have_received(:context=).with(
+          selected_zone: "Centro Histórico",
+          selected_category: "plomeria",
+          discovery_method: "c2a_region_based"
+        )
+      end
+
+      it "clears Redis search context" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(REDIS).to have_received(:del).with("client_search:#{from}")
+      end
+
+      it "sends confirmation message with provider name" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "Perfecto, seleccionaste a Miguel Hernández. Ahora vamos a agendar tu cita..."
+        )
+      end
+    end
+
+    context "when client already exists" do
+      let(:client) { instance_double(Client, id: 2, phone: from, save!: true, new_record?: false) }
+      let(:conversation) { instance_double(Conversation, id: 2, stage: "active", context: {}, update!: true) }
+
+      before do
+        allow(Client).to receive(:find_or_initialize_by).with(phone: from).and_return(client)
+        allow(Conversation).to receive(:find_or_create_by!).and_yield(conversation).and_return(conversation)
+        allow(conversation).to receive(:client=)
+        allow(conversation).to receive(:stage=)
+        allow(conversation).to receive(:context=)
+        allow(conversation).to receive(:last_message_at=)
+        allow(conversation).to receive(:context).and_return({})
+      end
+
+      it "does not save existing client" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(client).not_to have_received(:save!)
+      end
+
+      it "does not log client creation" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(Rails.logger).not_to have_received(:info).with(/Created new client/)
+      end
+
+      it "still creates conversation and sends confirmation" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(Conversation).to have_received(:find_or_create_by!)
+        expect(WhatsAppService).to have_received(:send_message)
+      end
+    end
+
+    context "when conversation already exists with different stage" do
+      let(:client) { instance_double(Client, id: 3, phone: from, save!: true, new_record?: false) }
+      let(:conversation) do
+        instance_double(
+          Conversation,
+          id: 3,
+          stage: "escalated",
+          context: { previous_key: "previous_value" },
+          update!: true
+        )
+      end
+
+      before do
+        allow(Client).to receive(:find_or_initialize_by).with(phone: from).and_return(client)
+        allow(Conversation).to receive(:find_or_create_by!).and_return(conversation)
+      end
+
+      it "updates conversation stage to appointment_scheduling" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(conversation).to have_received(:update!).with(
+          hash_including(stage: "appointment_scheduling")
+        )
+      end
+
+      it "merges search context with existing context" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(conversation).to have_received(:update!).with(
+          hash_including(
+            context: hash_including(
+              selected_zone: "Centro Histórico",
+              selected_category: "plomeria",
+              discovery_method: "c2a_region_based"
+            )
+          )
+        )
+      end
+
+      it "updates last_message_at timestamp" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(conversation).to have_received(:update!).with(
+          hash_including(:last_message_at)
+        )
+      end
+    end
+
+    context "when conversation already exists with appointment_scheduling stage" do
+      let(:client) { instance_double(Client, id: 4, phone: from, save!: true, new_record?: false) }
+      let(:conversation) do
+        instance_double(
+          Conversation,
+          id: 4,
+          stage: "appointment_scheduling",
+          context: { old_zone: "Old Zone" },
+          update!: true
+        )
+      end
+
+      before do
+        allow(Client).to receive(:find_or_initialize_by).with(phone: from).and_return(client)
+        allow(Conversation).to receive(:find_or_create_by!).and_return(conversation)
+      end
+
+      it "still updates conversation to refresh context" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        # The update! should be called even if stage is already correct
+        expect(conversation).to have_received(:update!)
+      end
+
+      it "updates context with new search data" do
+        orchestrator.send(:transition_to_appointment_flow, provider, search_context)
+
+        expect(conversation).to have_received(:update!).with(
+          hash_including(
+            context: hash_including(
+              selected_zone: "Centro Histórico",
+              selected_category: "plomeria"
+            )
+          )
+        )
+      end
+    end
+  end
+
+  describe "#clear_search_context" do
+    let(:from) { "5212291234567" }
+    let(:body) { "test" }
+    let(:orchestrator) { described_class.new_search_mode(from: from, body: body) }
+
+    before do
+      allow(REDIS).to receive(:del)
+    end
+
+    it "deletes search context from Redis" do
+      orchestrator.send(:clear_search_context)
+
+      expect(REDIS).to have_received(:del).with("client_search:#{from}")
+    end
+
+    it "uses correct Redis key format" do
+      orchestrator.send(:clear_search_context)
+
+      expect(REDIS).to have_received(:del).with("client_search:5212291234567")
+    end
+  end
+
+  describe "#handle_search_flow_response with provider_selection stage" do
+    let(:from) { "5212291234567" }
+    let(:body) { "provider_123" }
+    let(:orchestrator) { described_class.new_search_mode(from: from, body: body) }
+
+    context "when stage is provider_selection" do
+      let(:search_context) do
+        {
+          detected_state: "Veracruz",
+          region_scope: "state",
+          selected_zone: "Centro Histórico",
+          selected_category: "plomeria",
+          stage: "provider_selection",
+          provider_page: 1
+        }
+      end
+
+      it "calls handle_provider_selection_response" do
+        allow(orchestrator).to receive(:handle_provider_selection_response)
+
+        orchestrator.send(:handle_search_flow_response, search_context)
+
+        expect(orchestrator).to have_received(:handle_provider_selection_response).with(search_context)
       end
     end
   end

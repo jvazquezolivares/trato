@@ -290,6 +290,74 @@ module WhatsApp
       }
     end
 
+    # Builds a List Message with provider search results.
+    # Used in client discovery flow (C2A) after zone and category selection.
+    # Displays max 10 providers per page with "Ver más" option if more results exist.
+    #
+    # @param providers [ActiveRecord::Relation] Provider query results
+    # @param page [Integer] Page number (default: 1)
+    # @param zone [String] Selected zone name
+    # @param category [String] Selected category name
+    # @return [Hash] List Message payload for Meta Cloud API
+    def self.build_provider_results_list(providers, page: 1, zone:, category:)
+      # Paginate results (10 per page)
+      per_page = 10
+      offset = (page - 1) * per_page
+      total_count = providers.count
+      paginated_providers = providers.offset(offset).limit(per_page)
+
+      # Build rows for each provider
+      provider_rows = paginated_providers.map do |provider|
+        # Calculate average rating
+        avg_rating = provider.reviews.average(:rating)
+        rating_display = avg_rating ? "⭐ #{avg_rating.round(1)}" : "Sin reseñas"
+
+        # Build title with name and rating (max 20 chars)
+        title = truncate_label("#{provider.name} #{rating_display}")
+
+        # Build description with primary category and city
+        primary_category = provider.provider_categories.find_by(primary: true)
+        category_name = primary_category&.name || "Técnico"
+        description = "#{category_name} • #{provider.city}"
+
+        {
+          id: "provider_#{provider.id}",
+          title: title,
+          description: truncate_description(description)
+        }
+      end
+
+      # Add "Ver más" option if there are more results
+      has_more = total_count > (page * per_page)
+      if has_more
+        provider_rows << {
+          id: "ver_mas_providers_page_#{page + 1}",
+          title: "Ver más técnicos",
+          description: "Mostrar más resultados"
+        }
+      end
+
+      {
+        type: "list",
+        header: {
+          type: "text",
+          text: "Técnicos disponibles"
+        },
+        body: {
+          text: "Encontré #{total_count} técnico#{'s' if total_count != 1} de #{category} en #{zone}"
+        },
+        action: {
+          button: "Ver opciones",
+          sections: [
+            {
+              title: "Selecciona uno",
+              rows: provider_rows
+            }
+          ]
+        }
+      }
+    end
+
     # Truncates label to MAX_BUTTON_LABEL_LENGTH characters.
     # Meta Cloud API enforces 20-character limit for button labels.
     #
@@ -301,5 +369,17 @@ module WhatsApp
       "#{label[0...MAX_BUTTON_LABEL_LENGTH - 1]}…"
     end
     private_class_method :truncate_label
+
+    # Truncates description to 72 characters (Meta Cloud API limit).
+    #
+    # @param description [String] Original description text
+    # @return [String] Truncated description if necessary
+    def self.truncate_description(description)
+      max_length = 72
+      return description if description.length <= max_length
+
+      "#{description[0...max_length - 1]}…"
+    end
+    private_class_method :truncate_description
   end
 end

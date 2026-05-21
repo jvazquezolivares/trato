@@ -274,6 +274,8 @@ class ClientAssistantOrchestrator
       handle_zone_selection_response(search_context)
     when "category_selection"
       handle_category_selection_response(search_context)
+    when "provider_selection"
+      handle_provider_selection_response(search_context)
     else
       Rails.logger.warn("[ClientAssistantOrchestrator] Unknown search stage: #{stage}")
       # Fallback to new search
@@ -489,24 +491,234 @@ class ClientAssistantOrchestrator
     end
 
     # User selected a category - proceed to provider query (Task 17)
-    # TODO: Task 17 - Query providers and display results
-    # For now, just confirm the category selection
-    WhatsAppService.send_message(
-      to: @from,
-      message: "Perfecto, buscas #{selected_option} en #{search_context[:selected_zone]}. " \
-               "Estoy buscando técnicos disponibles..."
+    selected_zone = search_context[:selected_zone]
+    selected_category = selected_option
+
+    # Query providers matching zone and category
+    providers = query_providers(zone: selected_zone, category: selected_category)
+
+    if providers.empty?
+      # No providers found - trigger C2F flow (waiting for technician)
+      WhatsAppService.send_message(
+        to: @from,
+        message: "Lo siento, aún no tenemos técnicos de #{selected_category} en #{selected_zone}. " \
+                 "¿Quieres que te avisemos cuando tengamos uno disponible?"
+      )
+
+      # TODO: Implement C2F flow (Task 24)
+      Rails.logger.info("[ClientAssistantOrchestrator] No providers found for #{selected_category} in #{selected_zone}")
+      return
+    end
+
+    # Send provider results (page 1)
+    send_provider_results(
+      providers: providers,
+      page: 1,
+      zone: selected_zone,
+      category: selected_category
     )
 
-    # Store selected category in context for Task 17
+    # Store selected category and provider query context
     store_search_context(
       detected_state: search_context[:detected_state],
       region_scope: search_context[:region_scope],
-      selected_zone: search_context[:selected_zone],
-      selected_category: selected_option,
-      stage: "provider_query"
+      selected_zone: selected_zone,
+      selected_category: selected_category,
+      stage: "provider_selection",
+      provider_page: 1
     )
 
-    Rails.logger.info("[ClientAssistantOrchestrator] Category selected: #{selected_option} for client #{@from}")
+    Rails.logger.info("[ClientAssistantOrchestrator] Category selected: #{selected_category} for client #{@from}. Found #{providers.count} providers.")
+  end
+
+  # Handle provider selection response
+  # @param search_context [Hash] The stored search context with selected_zone, selected_category, and provider_page
+  def handle_provider_selection_response(search_context)
+    # The user's message should contain the selected provider ID or "Ver más" option
+    # WhatsApp List Messages send the row ID as the message body
+    selected_option = @body.strip
+
+    if selected_option.blank?
+      WhatsAppService.send_message(
+        to: @from,
+        message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+      )
+      return
+    end
+
+    # Check if user selected "Ver más técnicos"
+    if selected_option.start_with?("ver_mas_providers_page_")
+      # Extract page number from the option ID
+      page_number = selected_option.split("_").last.to_i
+
+      # Query providers again
+      providers = query_providers(
+        zone: search_context[:selected_zone],
+        category: search_context[:selected_category]
+      )
+
+      # Send provider results for the requested page
+      send_provider_results(
+        providers: providers,
+        page: page_number,
+        zone: search_context[:selected_zone],
+        category: search_context[:selected_category]
+      )
+
+      # Update context with new page number
+      store_search_context(
+        detected_state: search_context[:detected_state],
+        region_scope: search_context[:region_scope],
+        selected_zone: search_context[:selected_zone],
+        selected_category: search_context[:selected_category],
+        stage: "provider_selection",
+        provider_page: page_number
+      )
+
+      Rails.logger.info("[ClientAssistantOrchestrator] Sent provider results page #{page_number} for client #{@from}")
+      return
+    end
+
+    # User selected a provider - extract provider ID
+    if selected_option.start_with?("provider_")
+      provider_id = selected_option.split("_").last.to_i
+      provider = Provider.find_by(id: provider_id)
+
+      if provider.nil?
+        WhatsAppService.send_message(
+          to: @from,
+          message: "Lo siento, no pude encontrar ese técnico. ¿Puedes seleccionar otro?"
+        )
+        return
+      end
+
+      # Transition to C1A appointment scheduling flow
+      transition_to_appointment_flow(provider, search_context)
+
+      Rails.logger.info("[ClientAssistantOrchestrator] Provider selected: #{provider.name} (ID: #{provider.id}) for client #{@from}. Transitioning to appointment flow.")
+    else
+      WhatsAppService.send_message(
+        to: @from,
+        message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+      )
+    end
+  end
+
+  # Transition from provider selection to appointment scheduling flow (C1A)
+  # Creates/finds client and conversation records, then initiates appointment scheduling
+  # @param provider [Provider] The selected provider
+  # @param search_context [Hash] The stored search context with zone and category info
+  def transition_to_appointment_flow(provider, search_context)
+    # Find or create client record
+    client = Client.find_or_initialize_by(phone: @from)
+    if client.new_record?
+      client.save!
+      Rails.logger.info("[ClientAssistantOrchestrator] Created new client record for #{@from}")
+    end
+
+    # Find or create conversation record
+    conversation = Conversation.find_or_create_by!(
+      provider: provider,
+      phone: @from,
+      role: "client"
+    ) do |conv|
+      conv.client = client
+      conv.stage = "appointment_scheduling"
+      conv.context = {
+        selected_zone: search_context[:selected_zone],
+        selected_category: search_context[:selected_category],
+        discovery_method: "c2a_region_based"
+      }
+      conv.last_message_at = Time.current
+    end
+
+    # Always update conversation to refresh context and stage
+    conversation.update!(
+      stage: "appointment_scheduling",
+      context: conversation.context.merge(
+        selected_zone: search_context[:selected_zone],
+        selected_category: search_context[:selected_category],
+        discovery_method: "c2a_region_based"
+      ),
+      last_message_at: Time.current
+    )
+
+    # Clear search context from Redis (no longer needed)
+    clear_search_context
+
+    # Send confirmation message
+    WhatsAppService.send_message(
+      to: @from,
+      message: "Perfecto, seleccionaste a #{provider.name}. " \
+               "Ahora vamos a agendar tu cita..."
+    )
+
+    # Note: C1A dynamic availability flow (Tasks 18-19) will be triggered
+    # when the client responds to this message. The conversation stage
+    # "appointment_scheduling" will route subsequent messages through
+    # the standard ClientAssistantOrchestrator#process flow with the
+    # provider context set.
+  end
+
+  # Clear search context from Redis
+  def clear_search_context
+    redis_key = "client_search:#{@from}"
+    REDIS.del(redis_key)
+  end
+
+  # Query providers matching zone and category
+  # Orders results: random, but top-rated first if > 10 results
+  # @param zone [String] Selected zone name
+  # @param category [String] Selected category slug
+  # @return [ActiveRecord::Relation] Provider query results
+  def query_providers(zone:, category:)
+    # Query active providers by city (zone is part of city in our data model)
+    # and category slug
+    providers = Provider.where(active: true)
+                       .joins(:provider_categories)
+                       .where(provider_categories: { slug: category })
+                       .includes(:reviews, :provider_categories)
+                       .distinct
+
+    # Filter by zone (stored in service_area or city field)
+    # For now, we'll use city field as a simple match
+    # TODO: Improve zone matching logic if service_area contains multiple zones
+    providers = providers.where("city ILIKE ?", "%#{zone}%")
+
+    # Order results based on count
+    if providers.count > 10
+      # Top-rated first, then random
+      providers.left_joins(:reviews)
+               .group("providers.id")
+               .order(Arel.sql("COALESCE(AVG(reviews.rating), 0) DESC, RANDOM()"))
+    else
+      # Random order
+      providers.order("RANDOM()")
+    end
+  end
+
+  # Send provider results as List Message
+  # @param providers [ActiveRecord::Relation] Provider query results
+  # @param page [Integer] Page number
+  # @param zone [String] Selected zone name
+  # @param category [String] Selected category name
+  def send_provider_results(providers:, page:, zone:, category:)
+    # Get category name from ZonesService for display
+    category_data = ZonesService.all_categories.find { |cat| cat["id"] == category }
+    category_name = category_data ? category_data["name"] : category
+
+    # Build List Message with provider results
+    providers_payload = WhatsApp::ListMessageBuilder.build_provider_results_list(
+      providers,
+      page: page,
+      zone: zone,
+      category: category_name
+    )
+
+    WhatsAppService.send_list_message(
+      to: @from,
+      payload: providers_payload
+    )
   end
 
   # Handle region detection and send confirmation message

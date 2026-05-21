@@ -87,6 +87,40 @@ module Assistants
       scope.distinct.limit(5)
     end
 
+    # Query providers by zone and category for C2A region-based discovery flow
+    # @param zone [String] Zone name from zones.json (e.g., "Boca del Río")
+    # @param category_slug [String] Category slug from zones.json (e.g., "plomeria")
+    # @return [ActiveRecord::Relation] Ordered provider results
+    def search_providers_by_zone_and_category(zone:, category_slug:)
+      # Query active providers matching zone and category
+      base_scope = Provider.where(active: true)
+                           .joins(:provider_categories)
+                           .where("LOWER(service_area) LIKE ?", "%#{zone.downcase}%")
+                           .where("LOWER(provider_categories.slug) = ?", category_slug.downcase)
+
+      # Count total results to determine ordering strategy
+      # Use group to get distinct count
+      total_count = base_scope.group("providers.id").count.size
+
+      # Order results: random, but top-rated first if > 10 results
+      if total_count > 10
+        # Top-rated first (by average rating), then random
+        # Use group to handle duplicates from joins
+        base_scope.select("providers.*")
+                  .left_joins(:reviews)
+                  .group("providers.id")
+                  .order(Arel.sql("COALESCE(AVG(reviews.rating), 0) DESC, RANDOM()"))
+                  .preload(:reviews, :provider_categories)
+      else
+        # Just random order for <= 10 results
+        # Use group to handle duplicates from joins
+        base_scope.select("providers.*")
+                  .group("providers.id")
+                  .order("RANDOM()")
+                  .preload(:reviews, :provider_categories)
+      end
+    end
+
     def handle_results(results)
       if results.empty?
         send_no_results_message
