@@ -10,6 +10,7 @@ es:
       unclear_confirmation: "No entendí tu respuesta. ¿Confirmas la cita de %{time}?"
       slot_selection_error: "No pude identificar el horario. ¿Puedes seleccionar uno de la lista?"
       confirmation_error: "Lo siento, hubo un problema confirmando tu cita. ¿Quieres intentar con otro horario?"
+      reschedule_accepted_by_client: "%{provider_name}, %{client_name} aceptó el nuevo horario ✓ ¿Quieres avisarle tú directamente o lo hago yo por aquí?"
       
     # Provider Selection Messages
     provider:
