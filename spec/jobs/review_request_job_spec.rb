@@ -18,7 +18,7 @@ RSpec.describe ReviewRequestJob, type: :job do
 
   before do
     allow(Job).to receive(:find_by).with(id: 42).and_return(job_record)
-    allow(WhatsAppService).to receive(:send_message)
+    allow(WhatsAppService).to receive(:send_list_message)
     allow(job_record).to receive(:update!)
   end
 
@@ -27,7 +27,7 @@ RSpec.describe ReviewRequestJob, type: :job do
       it "returns silently without sending any message" do
         allow(Job).to receive(:find_by).with(id: 999).and_return(nil)
 
-        expect(WhatsAppService).not_to receive(:send_message)
+        expect(WhatsAppService).not_to receive(:send_list_message)
 
         described_class.new.perform(999)
       end
@@ -51,7 +51,7 @@ RSpec.describe ReviewRequestJob, type: :job do
       end
 
       it "skips without error" do
-        expect(WhatsAppService).not_to receive(:send_message)
+        expect(WhatsAppService).not_to receive(:send_list_message)
         expect(job_no_phone).not_to receive(:update!)
 
         described_class.new.perform(43)
@@ -76,7 +76,7 @@ RSpec.describe ReviewRequestJob, type: :job do
       end
 
       it "skips without error" do
-        expect(WhatsAppService).not_to receive(:send_message)
+        expect(WhatsAppService).not_to receive(:send_list_message)
         expect(job_blank_phone).not_to receive(:update!)
 
         described_class.new.perform(44)
@@ -99,7 +99,7 @@ RSpec.describe ReviewRequestJob, type: :job do
       end
 
       it "skips without sending a message" do
-        expect(WhatsAppService).not_to receive(:send_message)
+        expect(WhatsAppService).not_to receive(:send_list_message)
 
         described_class.new.perform(45)
       end
@@ -122,7 +122,7 @@ RSpec.describe ReviewRequestJob, type: :job do
       end
 
       it "stops and does not send further messages" do
-        expect(WhatsAppService).not_to receive(:send_message)
+        expect(WhatsAppService).not_to receive(:send_list_message)
         expect(job_max_attempts).not_to receive(:update!)
 
         described_class.new.perform(46)
@@ -133,31 +133,29 @@ RSpec.describe ReviewRequestJob, type: :job do
       before do
         # Prevent rescheduling side effects in these tests
         allow(ReviewRequestJob).to receive_message_chain(:set, :perform_later)
+        allow(WhatsAppService).to receive(:send_list_message)
       end
 
-      it "sends review request message via WhatsAppService" do
-        expect(WhatsAppService).to receive(:send_message).with(
+      it "sends review request List Message via WhatsAppService" do
+        expect(WhatsAppService).to receive(:send_list_message).with(
           to: "5212219876543",
-          message: a_string_including("Mariana López", "Miguel García", "1 al 5")
+          payload: a_hash_including(
+            type: "list",
+            header: a_hash_including(text: "¿Cómo calificarías el trabajo?")
+          )
         )
 
         described_class.new.perform(42)
       end
 
-      it "instructs the client to respond with a number" do
-        expect(WhatsAppService).to receive(:send_message).with(
-          to: "5212219876543",
-          message: a_string_including("responde a este mensaje con un número del 1 al 5")
-        )
+      it "sends List Message with 5 star rating options" do
+        expect(WhatsAppService).to receive(:send_list_message) do |args|
+          payload = args[:payload]
+          rows = payload[:action][:sections].first[:rows]
 
-        described_class.new.perform(42)
-      end
-
-      it "includes a greeting with the client name" do
-        expect(WhatsAppService).to receive(:send_message).with(
-          to: "5212219876543",
-          message: a_string_starting_with("Hola Mariana López 👋")
-        )
+          expect(rows.size).to eq(5)
+          expect(rows.map { |r| r[:id] }).to eq(%w[5 4 3 2 1])
+        end
 
         described_class.new.perform(42)
       end
@@ -238,12 +236,16 @@ RSpec.describe ReviewRequestJob, type: :job do
         allow(job_no_name).to receive(:update!)
         allow(job_no_name).to receive(:review_attempts).and_return(0, 1)
         allow(ReviewRequestJob).to receive_message_chain(:set, :perform_later)
+        allow(WhatsAppService).to receive(:send_list_message)
       end
 
-      it "sends a generic greeting without the client name" do
-        expect(WhatsAppService).to receive(:send_message).with(
+      it "sends List Message regardless of client name (name not used in List Message)" do
+        expect(WhatsAppService).to receive(:send_list_message).with(
           to: "5212219876543",
-          message: a_string_starting_with("Hola 👋")
+          payload: a_hash_including(
+            type: "list",
+            header: a_hash_including(text: "¿Cómo calificarías el trabajo?")
+          )
         )
 
         described_class.new.perform(48)

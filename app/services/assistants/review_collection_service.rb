@@ -82,9 +82,10 @@ module Assistants
     private
 
     # Handles a numeric rating (1–5) from the client.
+    # Accepts both direct numeric input and List Message selection IDs.
     # Stores the rating and asks for an optional comment.
     def handle_rating
-      rating = @body.to_i
+      rating = extract_rating_value
       return invalid_rating_response unless rating.between?(1, 5)
 
       job = find_reviewable_job
@@ -131,6 +132,16 @@ module Assistants
       return nil if MessagePersistenceFilter.trivial_body?(@body)
 
       @body
+    end
+
+    # Extracts the rating value from the message body.
+    # Handles both direct numeric input ("5") and List Message selection IDs ("5").
+    # Since List Message IDs are already numeric strings, this method simply
+    # converts to integer and validates the range.
+    #
+    # @return [Integer] the rating value (1-5)
+    def extract_rating_value
+      @body.to_i
     end
 
     # Creates a verified Review record.

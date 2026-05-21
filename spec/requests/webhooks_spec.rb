@@ -276,6 +276,52 @@ RSpec.describe "Webhooks", type: :request do
       end
     end
 
+    context "when payload is a star rating List Message response" do
+      let(:rating_list_reply_payload) do
+        {
+          entry: [ {
+            changes: [ {
+              value: {
+                metadata: { phone_number_id: client_phone_number_id },
+                messages: [ {
+                  from: "5212219876543",
+                  type: "interactive",
+                  interactive: {
+                    type: "list_reply",
+                    list_reply: {
+                      id: "5",
+                      title: "⭐⭐⭐⭐⭐ Excelente"
+                    }
+                  }
+                } ]
+              }
+            } ]
+          } ]
+        }
+      end
+
+      it "extracts the rating selection ID and enqueues ClientMessageJob" do
+        post "/webhooks/whatsapp", params: rating_list_reply_payload, as: :json
+
+        expect(ClientMessageJob).to have_received(:perform_later).with(
+          "5212219876543",
+          "5",
+          nil
+        )
+      end
+
+      it "passes numeric string ID that can be processed by ReviewCollectionService" do
+        post "/webhooks/whatsapp", params: rating_list_reply_payload, as: :json
+
+        # Verify the body parameter is the numeric string "5"
+        expect(ClientMessageJob).to have_received(:perform_later) do |from, body, media_url|
+          expect(body).to eq("5")
+          expect(body.to_i).to eq(5)
+          expect(body.to_i.between?(1, 5)).to be(true)
+        end
+      end
+    end
+
     context "when payload is an interactive Button Reply response" do
       let(:button_reply_payload) do
         {

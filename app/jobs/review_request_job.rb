@@ -81,23 +81,16 @@ class ReviewRequestJob < ApplicationJob
     client = job.client
     provider = job.provider
 
-    message = build_review_message(client.name, provider.name)
-    WhatsAppService.send_message(to: client.phone, message: message)
+    # Build List Message with star rating options
+    list_payload = WhatsApp::ListMessageBuilder.build_rating_list
+
+    # Send the List Message
+    WhatsAppService.send_list_message(to: client.phone, payload: list_payload)
 
     Rails.logger.info(
       "[ReviewRequestJob] Sent review request for Job ##{job.id} " \
       "to #{client.phone} (attempt #{job.review_attempts + 1})"
     )
-  end
-
-  # Builds the review request message in warm, colloquial Mexican Spanish.
-  # Explicitly instructs the client on how to leave the rating.
-  def build_review_message(client_name, provider_name)
-    greeting = client_name.present? ? "Hola #{client_name} 👋" : "Hola 👋"
-
-    "#{greeting} Esperamos que el trabajo de #{provider_name} haya quedado a tu gusto. " \
-      "¿Nos ayudas con una calificación? Solo responde a este mensaje con un número del 1 al 5 " \
-      "(donde 1 es malo y 5 es excelente) ⭐"
   end
 
   # Increments the attempt counter and records the request timestamp
