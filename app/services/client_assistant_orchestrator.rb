@@ -27,15 +27,23 @@ class ClientAssistantOrchestrator
   # Process messages from client number without short_uuid (C2A Region-Based Discovery)
   # This handles the new discovery flow where clients message the client number directly
   def process_search_mode
-    # Detect state from phone prefix
-    detected_state = ZonesService.detect_state_from_prefix(@from)
+    # Check if we have an ongoing search context
+    search_context = get_search_context
 
-    if detected_state.present?
-      # C2A flow: Region detected, ask for confirmation
-      handle_region_detected(detected_state)
+    if search_context.present?
+      # Handle response based on current stage
+      handle_search_flow_response(search_context)
     else
-      # Fallback to existing search mode if no region detected
-      Assistants::ProviderSearchService.call(from: @from, body: @body)
+      # New conversation - detect state from phone prefix
+      detected_state = ZonesService.detect_state_from_prefix(@from)
+
+      if detected_state.present?
+        # C2A flow: Region detected, ask for confirmation
+        handle_region_detected(detected_state)
+      else
+        # Fallback to existing search mode if no region detected
+        Assistants::ProviderSearchService.call(from: @from, body: @body)
+      end
     end
   end
 
@@ -253,6 +261,190 @@ class ClientAssistantOrchestrator
   end
 
   # --- C2A Region-Based Discovery ---
+
+  # Handle ongoing search flow based on stored context
+  # @param search_context [Hash] The stored search context with stage and data
+  def handle_search_flow_response(search_context)
+    stage = search_context[:stage]
+
+    case stage
+    when "region_confirmation"
+      handle_region_confirmation_response(search_context)
+    when "zone_selection"
+      handle_zone_selection_response(search_context)
+    else
+      Rails.logger.warn("[ClientAssistantOrchestrator] Unknown search stage: #{stage}")
+      # Fallback to new search
+      detected_state = ZonesService.detect_state_from_prefix(@from)
+      handle_region_detected(detected_state) if detected_state.present?
+    end
+  end
+
+  # Handle response to region confirmation question
+  # @param search_context [Hash] The stored search context with detected_state
+  def handle_region_confirmation_response(search_context)
+    detected_state = search_context[:detected_state]
+
+    # Check if user confirmed the detected region
+    # Button IDs: "region_yes_#{state}" or "region_no"
+    # Also accept natural language responses like "Sí", "Si", "Yes", etc.
+    if region_confirmed?(@body, detected_state)
+      # User confirmed - show zones for detected state
+      zones = ZonesService.zones_for_state(detected_state)
+
+      if zones.empty?
+        # No zones found for this state (shouldn't happen with valid config)
+        Rails.logger.error("[ClientAssistantOrchestrator] No zones found for state: #{detected_state}")
+        WhatsAppService.send_message(
+          to: @from,
+          message: "Lo siento, no tengo zonas configuradas para #{detected_state}. " \
+                   "¿Puedes decirme en qué ciudad específica necesitas el servicio?"
+        )
+        return
+      end
+
+      # Send List Message with zones for this state
+      zones_payload = WhatsApp::ListMessageBuilder.build_zones_list(
+        zones,
+        title: "Zonas en #{detected_state}"
+      )
+
+      WhatsAppService.send_list_message(
+        to: @from,
+        payload: zones_payload
+      )
+
+      # Update context to zone selection stage
+      store_search_context(
+        detected_state: detected_state,
+        stage: "zone_selection",
+        region_scope: "state" # User selected state-specific zones
+      )
+    elsif region_declined?(@body)
+      # User declined - show all zones from all states
+      zones = ZonesService.all_zones
+
+      if zones.empty?
+        Rails.logger.error("[ClientAssistantOrchestrator] No zones found in zones.json")
+        WhatsAppService.send_message(
+          to: @from,
+          message: "Lo siento, tengo un problema técnico. ¿Puedes intentar más tarde?"
+        )
+        return
+      end
+
+      # Send List Message with all zones
+      zones_payload = WhatsApp::ListMessageBuilder.build_zones_list(
+        zones,
+        title: "Todas las zonas"
+      )
+
+      WhatsAppService.send_list_message(
+        to: @from,
+        payload: zones_payload
+      )
+
+      # Update context to zone selection stage
+      store_search_context(
+        detected_state: detected_state,
+        stage: "zone_selection",
+        region_scope: "all" # User selected all zones
+      )
+    else
+      # Unclear response - ask again
+      WhatsAppService.send_message(
+        to: @from,
+        message: "No entendí tu respuesta. ¿Buscas un técnico en #{detected_state}?"
+      )
+
+      # Resend buttons
+      WhatsAppService.send_message_with_buttons(
+        to: @from,
+        message: "Por favor selecciona una opción:",
+        buttons: [
+          { id: "region_yes_#{detected_state}", title: "Sí, en #{detected_state}" },
+          { id: "region_no", title: "No, en otro lugar" }
+        ]
+      )
+    end
+  end
+
+  # Check if user confirmed the detected region
+  # @param body [String] User's message
+  # @param state [String] The detected state name
+  # @return [Boolean] True if user confirmed
+  def region_confirmed?(body, state)
+    return false if body.blank?
+
+    normalized_body = body.downcase.strip
+
+    # Check for button ID match
+    return true if normalized_body.include?("region_yes_")
+
+    # Check for natural language confirmation
+    # Accept: "sí", "si", "yes", "sí en [state]", etc.
+    confirmation_patterns = [
+      /\b(sí|si|yes|ok|dale|claro|exacto)\b/i,
+      /\ben #{Regexp.escape(state.downcase)}\b/i
+    ]
+
+    confirmation_patterns.any? { |pattern| normalized_body.match?(pattern) }
+  end
+
+  # Check if user declined the detected region
+  # @param body [String] User's message
+  # @return [Boolean] True if user declined
+  def region_declined?(body)
+    return false if body.blank?
+
+    normalized_body = body.downcase.strip
+
+    # Check for button ID match
+    return true if normalized_body.include?("region_no")
+
+    # Check for natural language decline
+    # Accept: "no", "otro lugar", "otra región", etc.
+    decline_patterns = [
+      /\b(no|nop|nope)\b/i,
+      /\botr[oa]\s+(lugar|ciudad|estado|regi[oó]n)\b/i,
+      /\ben\s+otro\b/i
+    ]
+
+    decline_patterns.any? { |pattern| normalized_body.match?(pattern) }
+  end
+
+  # Handle zone selection response
+  # @param search_context [Hash] The stored search context with detected_state and region_scope
+  def handle_zone_selection_response(search_context)
+    # The user's message should contain the selected zone
+    # WhatsApp List Messages send the row ID as the message body
+    selected_zone = @body.strip
+
+    if selected_zone.blank?
+      WhatsAppService.send_message(
+        to: @from,
+        message: "No pude identificar la zona. ¿Puedes seleccionar una opción de la lista?"
+      )
+      return
+    end
+
+    # Store the selected zone in context
+    store_search_context(
+      detected_state: search_context[:detected_state],
+      region_scope: search_context[:region_scope],
+      selected_zone: selected_zone,
+      stage: "category_selection"
+    )
+
+    # TODO: Task 16 - Send category selection List Message
+    # For now, just confirm the zone selection
+    WhatsAppService.send_message(
+      to: @from,
+      message: "Perfecto, buscas en #{selected_zone}. Ahora selecciona el tipo de servicio que necesitas."
+    )
+
+    Rails.logger.info("[ClientAssistantOrchestrator] Zone selected: #{selected_zone} for client #{@from}")
+  end
 
   # Handle region detection and send confirmation message
   # @param detected_state [String] The detected state name (e.g., "Veracruz")
