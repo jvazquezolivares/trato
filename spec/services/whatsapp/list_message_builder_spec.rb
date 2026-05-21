@@ -2349,4 +2349,343 @@ RSpec.describe WhatsApp::ListMessageBuilder do
       end
     end
   end
+
+  describe ".build_available_slots_list" do
+    let(:tomorrow) { Date.tomorrow }
+    let(:provider_name) { "Miguel" }
+
+    context "with available slots for tomorrow" do
+      let(:slots) do
+        [
+          { time: Time.zone.parse("#{tomorrow} 09:00"), display_time: "09:00" },
+          { time: Time.zone.parse("#{tomorrow} 10:00"), display_time: "10:00" },
+          { time: Time.zone.parse("#{tomorrow} 11:00"), display_time: "11:00" }
+        ]
+      end
+
+      it "returns a valid List Message payload" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        expect(result).to be_a(Hash)
+        expect(result[:type]).to eq("list")
+      end
+
+      it "includes header with title 'Horarios disponibles — mañana' for tomorrow" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        expect(result[:header]).to eq({ type: "text", text: "Horarios disponibles — mañana" })
+      end
+
+      it "includes body text with provider name and date" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        expect(result[:body][:text]).to include(provider_name)
+        expect(result[:body][:text]).to include("mañana")
+        expect(result[:body][:text]).to include("3 horarios disponibles")
+      end
+
+      it "includes action with button label" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        expect(result[:action][:button]).to eq("Ver horarios")
+      end
+
+      it "includes sections with time slots" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        expect(result[:action][:sections]).to be_an(Array)
+        expect(result[:action][:sections].length).to eq(1)
+      end
+
+      it "includes section with title" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        section = result[:action][:sections].first
+
+        expect(section[:title]).to eq("Selecciona un horario")
+      end
+
+      it "includes rows for all available slots" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.length).to eq(3)
+      end
+
+      it "formats each slot with unique id and display time" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each_with_index do |row, index|
+          expect(row[:id]).to eq("slot_#{slots[index][:time].to_i}")
+          expect(row[:title]).to eq(slots[index][:display_time])
+        end
+      end
+
+      it "uses Unix timestamp as slot id" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row[:id]).to start_with("slot_")
+          # Extract timestamp and verify it's a valid integer
+          timestamp = row[:id].sub("slot_", "").to_i
+          expect(timestamp).to be > 0
+        end
+      end
+
+      it "displays time in HH:MM format" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows[0][:title]).to eq("09:00")
+        expect(rows[1][:title]).to eq("10:00")
+        expect(rows[2][:title]).to eq("11:00")
+      end
+    end
+
+    context "with single available slot" do
+      let(:slots) do
+        [
+          { time: Time.zone.parse("#{tomorrow} 14:00"), display_time: "14:00" }
+        ]
+      end
+
+      it "returns payload with one row" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.length).to eq(1)
+        expect(rows.first[:title]).to eq("14:00")
+      end
+
+      it "uses singular form in body text" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        expect(result[:body][:text]).to include("1 horario disponible")
+        expect(result[:body][:text]).not_to include("horarios")
+      end
+    end
+
+    context "with multiple available slots" do
+      let(:slots) do
+        (9..17).map do |hour|
+          time = Time.zone.parse("#{tomorrow} #{hour}:00")
+          { time: time, display_time: time.strftime("%H:%M") }
+        end
+      end
+
+      it "returns payload with all slots" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.length).to eq(9)
+      end
+
+      it "uses plural form in body text" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        expect(result[:body][:text]).to include("9 horarios disponibles")
+      end
+
+      it "maintains chronological order" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.map { |r| r[:title] }).to eq([
+          "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"
+        ])
+      end
+    end
+
+    context "with date in the future (not tomorrow)" do
+      let(:future_date) { Date.tomorrow + 3.days }
+      let(:slots) do
+        [
+          { time: Time.zone.parse("#{future_date} 10:00"), display_time: "10:00" }
+        ]
+      end
+
+      it "includes header with formatted date in title" do
+        result = described_class.build_available_slots_list(slots, date: future_date, provider_name: provider_name)
+
+        # Header should include formatted date (e.g., "Horarios disponibles — jueves 23 de mayo")
+        expect(result[:header][:text]).to start_with("Horarios disponibles — ")
+        expect(result[:header][:text]).to match(/Horarios disponibles — \w+ \d+ de \w+/)
+      end
+
+      it "displays formatted date instead of 'mañana'" do
+        result = described_class.build_available_slots_list(slots, date: future_date, provider_name: provider_name)
+
+        expect(result[:body][:text]).not_to include("mañana")
+        # Should include day name and date (e.g., "jueves 23 de mayo")
+        expect(result[:body][:text]).to match(/\w+ \d+ de \w+/)
+      end
+
+      it "formats date in Spanish lowercase" do
+        result = described_class.build_available_slots_list(slots, date: future_date, provider_name: provider_name)
+
+        # Date should be lowercase (e.g., "jueves" not "Jueves")
+        body_text = result[:body][:text]
+        date_part = body_text.split("para ").last
+
+        expect(date_part[0]).to eq(date_part[0].downcase)
+      end
+    end
+
+    context "with different provider names" do
+      let(:slots) do
+        [
+          { time: Time.zone.parse("#{tomorrow} 09:00"), display_time: "09:00" }
+        ]
+      end
+
+      it "includes provider name in body text" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: "Carlos")
+
+        expect(result[:body][:text]).to include("Carlos")
+      end
+
+      it "works with provider names containing special characters" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: "José María")
+
+        expect(result[:body][:text]).to include("José María")
+      end
+    end
+
+    context "Meta Cloud API compliance" do
+      let(:slots) do
+        [
+          { time: Time.zone.parse("#{tomorrow} 09:00"), display_time: "09:00" },
+          { time: Time.zone.parse("#{tomorrow} 10:00"), display_time: "10:00" }
+        ]
+      end
+
+      it "returns payload matching Meta Cloud API List Message format" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        # Verify top-level structure
+        expect(result).to have_key(:type)
+        expect(result).to have_key(:header)
+        expect(result).to have_key(:body)
+        expect(result).to have_key(:action)
+
+        # Verify header structure
+        expect(result[:header]).to have_key(:type)
+        expect(result[:header]).to have_key(:text)
+
+        # Verify body structure
+        expect(result[:body]).to have_key(:text)
+
+        # Verify action structure
+        expect(result[:action]).to have_key(:button)
+        expect(result[:action]).to have_key(:sections)
+
+        # Verify sections structure
+        expect(result[:action][:sections]).to be_an(Array)
+        expect(result[:action][:sections].first).to have_key(:title)
+        expect(result[:action][:sections].first).to have_key(:rows)
+
+        # Verify rows structure
+        rows = result[:action][:sections].first[:rows]
+        rows.each do |row|
+          expect(row).to have_key(:id)
+          expect(row).to have_key(:title)
+        end
+      end
+
+      it "respects 20-character button label limit" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        expect(result[:action][:button].length).to be <= 20
+      end
+
+      it "respects 20-character row title limit" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        rows.each do |row|
+          expect(row[:title].length).to be <= 20
+        end
+      end
+
+      it "uses unique ids for each slot" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+        ids = rows.map { |r| r[:id] }
+
+        expect(ids.uniq.length).to eq(ids.length)
+      end
+    end
+
+    context "requirement compliance" do
+      let(:slots) do
+        [
+          { time: Time.zone.parse("#{tomorrow} 09:00"), display_time: "09:00" },
+          { time: Time.zone.parse("#{tomorrow} 10:00"), display_time: "10:00" },
+          { time: Time.zone.parse("#{tomorrow} 11:00"), display_time: "11:00" }
+        ]
+      end
+
+      it "matches Task 19.1 acceptance criteria" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+
+        # Should display available slots as List Message
+        expect(result[:type]).to eq("list")
+
+        # Should include provider name and date
+        expect(result[:body][:text]).to include(provider_name)
+        expect(result[:body][:text]).to include("mañana")
+
+        # Should include all available slots
+        rows = result[:action][:sections].first[:rows]
+        expect(rows.length).to eq(3)
+        expect(rows.map { |r| r[:title] }).to eq(["09:00", "10:00", "11:00"])
+      end
+
+      it "provides selectable time slots" do
+        result = described_class.build_available_slots_list(slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        # Each slot should have a unique id that can be used for selection
+        rows.each do |row|
+          expect(row[:id]).to be_present
+          expect(row[:id]).to start_with("slot_")
+        end
+      end
+    end
+
+    context "edge cases" do
+      it "handles empty slots array" do
+        result = described_class.build_available_slots_list([], date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows).to eq([])
+      end
+
+      it "handles slots with afternoon times" do
+        afternoon_slots = [
+          { time: Time.zone.parse("#{tomorrow} 14:00"), display_time: "14:00" },
+          { time: Time.zone.parse("#{tomorrow} 15:00"), display_time: "15:00" },
+          { time: Time.zone.parse("#{tomorrow} 16:00"), display_time: "16:00" }
+        ]
+
+        result = described_class.build_available_slots_list(afternoon_slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.map { |r| r[:title] }).to eq(["14:00", "15:00", "16:00"])
+      end
+
+      it "handles slots with evening times" do
+        evening_slots = [
+          { time: Time.zone.parse("#{tomorrow} 18:00"), display_time: "18:00" },
+          { time: Time.zone.parse("#{tomorrow} 19:00"), display_time: "19:00" }
+        ]
+
+        result = described_class.build_available_slots_list(evening_slots, date: tomorrow, provider_name: provider_name)
+        rows = result[:action][:sections].first[:rows]
+
+        expect(rows.map { |r| r[:title] }).to eq(["18:00", "19:00"])
+      end
+    end
+  end
 end

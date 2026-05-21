@@ -1,0 +1,60 @@
+es:
+  messages:
+    # Appointment Scheduling Messages
+    appointment:
+      slot_reserved: "Perfecto, reservé el horario de %{time} para %{date}. Tienes 5 minutos para confirmar. ¿Confirmas la cita?"
+      slot_taken_by_other: "Lo siento, ese horario acaba de ser reservado por otro cliente. %{provider_name} es un técnico muy solicitado por muchas personas. Lamentamos los inconvenientes.\n\n¿Quieres ver otros horarios disponibles?"
+      reservation_expired_slot_taken: "Lo siento, tu reserva expiró y otro cliente tomó ese horario. ¿Quieres ver qué horarios quedaron disponibles?"
+      appointment_confirmed: "¡Listo! Tu cita está confirmada para %{date} a las %{time}. Te enviaré un recordatorio 1 hora antes. 📅"
+      reservation_cancelled: "Entendido, cancelé la reserva. ¿Quieres ver otros horarios?"
+      unclear_confirmation: "No entendí tu respuesta. ¿Confirmas la cita de %{time}?"
+      slot_selection_error: "No pude identificar el horario. ¿Puedes seleccionar uno de la lista?"
+      confirmation_error: "Lo siento, hubo un problema confirmando tu cita. ¿Quieres intentar con otro horario?"
+      
+    # Provider Selection Messages
+    provider:
+      selected: "Perfecto, seleccionaste a %{provider_name}. Ahora vamos a agendar tu cita..."
+      no_work_day: "%{provider_name} no tiene su agenda configurada para mañana. ¿Quieres que le avise para que te contacte directamente?"
+      fully_booked: "Lo siento, %{provider_name} no tiene horarios disponibles para %{date}. ¿Quieres que le avise para que te contacte directamente?"
+      
+    # Escalation Messages
+    escalation:
+      confirmed: "Perfecto, le avisé a %{provider_name}. Te contactará pronto para coordinar la cita. 😊"
+      declined: "Entendido. Si cambias de opinión, puedes escribirme de nuevo. ¡Que tengas un buen día! 😊"
+      unclear_response: "No entendí tu respuesta. ¿Quieres que le avise a %{provider_name}?"
+      
+    # Region Detection Messages
+    region:
+      detected: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de %{state}. ¿Buscas un técnico en esta región?"
+      no_zones: "Lo siento, no tengo zonas configuradas para %{state}. ¿Puedes decirme en qué ciudad específica necesitas el servicio?"
+      unclear_response: "No entendí tu respuesta. ¿Buscas un técnico en %{state}?"
+      
+    # Zone Selection Messages
+    zone:
+      selection_error: "No pude identificar la zona. ¿Puedes seleccionar una opción de la lista?"
+      
+    # Category Selection Messages
+    category:
+      selection_error: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+      no_providers: "Lo siento, aún no tenemos técnicos de %{category} en %{zone}. ¿Quieres que te avisemos cuando tengamos uno disponible?"
+      
+    # Provider Search Results Messages
+    search:
+      no_results: "No encontré técnicos con esos datos. ¿Puedes darme más detalles como la ciudad o el tipo de servicio?"
+      provider_selection_error: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+      
+    # Button Labels
+    buttons:
+      confirm: "Sí, confirmar"
+      cancel: "No, cancelar"
+      see_slots: "Ver horarios"
+      no_thanks: "No, gracias"
+      escalate_yes: "Sí, avísale"
+      escalate_no: "No, gracias"
+      region_yes: "Sí, en %{state}"
+      region_no: "No, en otro lugar"
+      
+    # Prompts
+    prompts:
+      confirm_or_cancel: "¿Qué prefieres?"
+      select_option: "Por favor selecciona una opción:"

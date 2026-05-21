@@ -276,6 +276,12 @@ class ClientAssistantOrchestrator
       handle_category_selection_response(search_context)
     when "provider_selection"
       handle_provider_selection_response(search_context)
+    when "slot_selection"
+      handle_slot_selection_response(search_context)
+    when "appointment_confirmation"
+      handle_appointment_confirmation_response(search_context)
+    when "appointment_escalation"
+      handle_appointment_escalation_response(search_context)
     else
       Rails.logger.warn("[ClientAssistantOrchestrator] Unknown search stage: #{stage}")
       # Fallback to new search
@@ -604,6 +610,176 @@ class ClientAssistantOrchestrator
     end
   end
 
+  # Handle response to appointment escalation question
+  # This handles "Sí, avísale" and "No, gracias" responses when provider has no WorkDay
+  # or when all slots are fully booked
+  # @param search_context [Hash] The stored search context with provider_id and escalation_reason
+  def handle_appointment_escalation_response(search_context)
+    provider_id = search_context[:provider_id]
+    provider_name = search_context[:provider_name]
+    escalation_reason = search_context[:escalation_reason]
+
+    # Find the provider
+    provider = Provider.find_by(id: provider_id)
+
+    if provider.nil?
+      Rails.logger.error("[ClientAssistantOrchestrator] Provider not found: #{provider_id}")
+      WhatsAppService.send_message(
+        to: @from,
+        message: "Lo siento, hubo un problema. ¿Puedes intentar de nuevo?"
+      )
+      clear_search_context
+      return
+    end
+
+    # Check if user confirmed escalation
+    # Button IDs: "escalate_yes" or "escalate_no"
+    # Also accept natural language responses like "Sí", "Si", "Yes", etc.
+    if escalation_confirmed?(@body)
+      # User confirmed - notify provider and set stage to escalated
+      handle_escalation_confirmed(provider, escalation_reason)
+    elsif escalation_declined?(@body)
+      # User declined - send closing message
+      handle_escalation_declined(provider_name)
+    else
+      # Unclear response - ask again
+      WhatsAppService.send_message(
+        to: @from,
+        message: "No entendí tu respuesta. ¿Quieres que le avise a #{provider_name}?"
+      )
+
+      # Resend buttons
+      WhatsAppService.send_message_with_buttons(
+        to: @from,
+        message: "Por favor selecciona una opción:",
+        buttons: [
+          { id: "escalate_yes", title: "Sí, avísale" },
+          { id: "escalate_no", title: "No, gracias" }
+        ]
+      )
+    end
+  end
+
+  # Check if user confirmed escalation
+  # @param body [String] User's message
+  # @return [Boolean] True if user confirmed
+  def escalation_confirmed?(body)
+    return false if body.blank?
+
+    normalized_body = body.downcase.strip
+
+    # Check for button ID match
+    return true if normalized_body.include?("escalate_yes")
+
+    # Check for natural language confirmation
+    # Accept: "sí", "si", "yes", "ok", "dale", "claro", "avísale", etc.
+    confirmation_patterns = [
+      /\b(sí|si|yes|ok|dale|claro|exacto|avísale|avisale)\b/i
+    ]
+
+    confirmation_patterns.any? { |pattern| normalized_body.match?(pattern) }
+  end
+
+  # Check if user declined escalation
+  # @param body [String] User's message
+  # @return [Boolean] True if user declined
+  def escalation_declined?(body)
+    return false if body.blank?
+
+    normalized_body = body.downcase.strip
+
+    # Check for button ID match
+    return true if normalized_body.include?("escalate_no")
+
+    # Check for natural language decline
+    # Accept: "no", "no gracias", "nop", "nope", etc.
+    decline_patterns = [
+      /\b(no|nop|nope)\b/i,
+      /\bno\s+gracias\b/i
+    ]
+
+    decline_patterns.any? { |pattern| normalized_body.match?(pattern) }
+  end
+
+  # Handle confirmed escalation - notify provider and set conversation stage to escalated
+  # @param provider [Provider] The provider to notify
+  # @param escalation_reason [String] The reason for escalation ("no_work_day" or "fully_booked")
+  def handle_escalation_confirmed(provider, escalation_reason)
+    # Find or create client record
+    client = Client.find_or_initialize_by(phone: @from)
+    if client.new_record?
+      client.save!
+      Rails.logger.info("[ClientAssistantOrchestrator] Created new client record for #{@from}")
+    end
+
+    # Find or create conversation record
+    conversation = Conversation.find_or_create_by!(
+      provider: provider,
+      phone: @from,
+      role: "client"
+    ) do |conv|
+      conv.client = client
+      conv.stage = "escalated"
+      conv.context = {
+        escalation_reason: escalation_reason,
+        escalated_at: Time.current.iso8601
+      }
+      conv.last_message_at = Time.current
+    end
+
+    # Always update conversation to set stage to escalated
+    conversation.update!(
+      stage: "escalated",
+      context: conversation.context.merge(
+        escalation_reason: escalation_reason,
+        escalated_at: Time.current.iso8601
+      ),
+      last_message_at: Time.current
+    )
+
+    # Notify provider
+    reason_text = escalation_reason == "no_work_day" ? "no tiene su agenda configurada" : "no tiene horarios disponibles"
+    provider_message = "Hola #{provider.name}, un cliente quiere agendar una cita contigo pero #{reason_text}. " \
+                       "Su número es: #{@from}. ¿Puedes contactarlo directamente?"
+
+    WhatsAppService.send_message(
+      to: provider.phone,
+      message: provider_message
+    )
+
+    # Send confirmation to client
+    client_message = "Perfecto, le avisé a #{provider.name}. " \
+                     "Te contactará pronto para coordinar la cita. 😊"
+
+    WhatsAppService.send_message(
+      to: @from,
+      message: client_message
+    )
+
+    # Clear search context
+    clear_search_context
+
+    Rails.logger.info("[ClientAssistantOrchestrator] Escalation confirmed for provider #{provider.name} (ID: #{provider.id}). Notified provider and set conversation stage to escalated.")
+  end
+
+  # Handle declined escalation - send closing message
+  # @param provider_name [String] The provider's name
+  def handle_escalation_declined(provider_name)
+    # Send closing message
+    message = "Entendido. Si cambias de opinión, puedes escribirme de nuevo. " \
+              "¡Que tengas un buen día! 😊"
+
+    WhatsAppService.send_message(
+      to: @from,
+      message: message
+    )
+
+    # Clear search context
+    clear_search_context
+
+    Rails.logger.info("[ClientAssistantOrchestrator] Escalation declined for provider #{provider_name}. Sent closing message to #{@from}")
+  end
+
   # Transition from provider selection to appointment scheduling flow (C1A)
   # Creates/finds client and conversation records, then initiates appointment scheduling
   # @param provider [Provider] The selected provider
@@ -670,7 +846,56 @@ class ClientAssistantOrchestrator
 
       Rails.logger.info("[ClientAssistantOrchestrator] Generated #{available_slots.count} available slots for WorkDay #{work_day.id}")
 
-      # TODO: Task 19 - Display available slots as List Message
+      # Task 19.1 - Display available slots as List Message
+      if available_slots.any?
+        slots_payload = WhatsApp::ListMessageBuilder.build_available_slots_list(
+          available_slots,
+          date: work_day.date,
+          provider_name: provider.name
+        )
+
+        WhatsAppService.send_list_message(
+          to: @from,
+          payload: slots_payload
+        )
+
+        # Store context for slot selection stage
+        store_search_context(
+          provider_id: provider.id,
+          provider_name: provider.name,
+          work_day_id: work_day.id,
+          work_day_date: work_day.date.to_s,
+          stage: "slot_selection"
+        )
+
+        Rails.logger.info("[ClientAssistantOrchestrator] Sent #{available_slots.count} available slots to #{@from} for WorkDay #{work_day.id}")
+      else
+        # No available slots (fully booked) - send escalation message
+        WhatsAppService.send_message(
+          to: @from,
+          message: "Lo siento, #{provider.name} no tiene horarios disponibles para #{work_day.date == Date.tomorrow ? 'mañana' : work_day.date.strftime('%A %d de %B')}. " \
+                   "¿Quieres que le avise para que te contacte directamente?"
+        )
+
+        WhatsAppService.send_message_with_buttons(
+          to: @from,
+          message: "¿Qué prefieres?",
+          buttons: [
+            { id: "escalate_yes", title: "Sí, avísale" },
+            { id: "escalate_no", title: "No, gracias" }
+          ]
+        )
+
+        # Store escalation context
+        store_search_context(
+          provider_id: provider.id,
+          provider_name: provider.name,
+          stage: "appointment_escalation",
+          escalation_reason: "fully_booked"
+        )
+
+        Rails.logger.info("[ClientAssistantOrchestrator] WorkDay #{work_day.id} fully booked. Sent escalation message to #{@from}")
+      end
     else
       # No WorkDay exists - show escalation message (Task 19)
       send_no_work_day_escalation(provider)
@@ -744,9 +969,10 @@ class ClientAssistantOrchestrator
       current_time += 1.hour
     end
 
-    # Filter out slots that overlap with existing appointments
+    # Filter out slots that overlap with existing appointments OR are reserved in Redis
     available_slots = all_slots.reject do |slot|
-      slot_taken?(slot[:time], appointments)
+      slot_taken?(slot[:time], appointments) ||
+        !SlotReservationService.slot_available?(slot[:time], work_day.id)
     end
 
     available_slots
@@ -781,6 +1007,14 @@ class ClientAssistantOrchestrator
         { id: "escalate_yes", title: "Sí, avísale" },
         { id: "escalate_no", title: "No, gracias" }
       ]
+    )
+
+    # Store escalation context
+    store_search_context(
+      provider_id: provider.id,
+      provider_name: provider.name,
+      stage: "appointment_escalation",
+      escalation_reason: "no_work_day"
     )
 
     Rails.logger.info("[ClientAssistantOrchestrator] No WorkDay found for #{provider.name}. Sent escalation message to #{@from}")
@@ -885,5 +1119,315 @@ class ClientAssistantOrchestrator
   rescue JSON::ParserError => e
     Rails.logger.error("[ClientAssistantOrchestrator] Failed to parse search context: #{e.message}")
     nil
+  end
+
+  # Handle slot selection response from client
+  # Client selected a time slot from the List Message
+  # @param search_context [Hash] The stored search context with provider_id, work_day_id
+  def handle_slot_selection_response(search_context)
+    selected_slot_id = @body.strip # e.g., "slot_1716379200"
+
+    # Validate slot ID format
+    unless selected_slot_id.start_with?("slot_")
+      WhatsAppService.send_message(
+        to: @from,
+        message: MessageHelper.get(:appointment, :slot_selection_error)
+      )
+      return
+    end
+
+    # Extract timestamp from slot ID
+    slot_timestamp = selected_slot_id.gsub("slot_", "").to_i
+    slot_time = Time.at(slot_timestamp)
+
+    provider_id = search_context[:provider_id]
+    provider_name = search_context[:provider_name]
+    work_day_id = search_context[:work_day_id]
+
+    # Try to reserve the slot
+    reservation = SlotReservationService.reserve_slot(slot_time, work_day_id, @from)
+
+    if reservation[:success]
+      # Slot reserved successfully! Ask for confirmation
+      formatted_time = slot_time.strftime("%H:%M")
+      date_display = if Date.parse(search_context[:work_day_date]) == Date.tomorrow
+                       "mañana"
+      else
+                       Date.parse(search_context[:work_day_date]).strftime("%A %d de %B")
+      end
+
+      WhatsAppService.send_message(
+        to: @from,
+        message: MessageHelper.get(
+          :appointment,
+          :slot_reserved,
+          time: formatted_time,
+          date: date_display
+        )
+      )
+
+      WhatsAppService.send_message_with_buttons(
+        to: @from,
+        message: MessageHelper.prompt(:confirm_or_cancel),
+        buttons: [
+          { id: "confirm_appointment", title: MessageHelper.button(:confirm) },
+          { id: "cancel_reservation", title: MessageHelper.button(:cancel) }
+        ]
+      )
+
+      # Store reservation context
+      store_search_context(
+        provider_id: provider_id,
+        provider_name: provider_name,
+        work_day_id: work_day_id,
+        work_day_date: search_context[:work_day_date],
+        slot_time: slot_timestamp,
+        slot_time_formatted: formatted_time,
+        stage: "appointment_confirmation",
+        reservation_expires_at: reservation[:expires_at].to_s
+      )
+
+      Rails.logger.info("[ClientAssistantOrchestrator] Reserved slot #{formatted_time} for #{@from}")
+    else
+      # Slot was taken by someone else - send friendly message with provider name
+      provider = Provider.find_by(id: provider_id)
+
+      WhatsAppService.send_message(
+        to: @from,
+        message: MessageHelper.get(
+          :appointment,
+          :slot_taken_by_other,
+          provider_name: provider&.name || provider_name
+        )
+      )
+
+      WhatsAppService.send_message_with_buttons(
+        to: @from,
+        message: MessageHelper.prompt(:confirm_or_cancel),
+        buttons: [
+          { id: "see_other_slots", title: MessageHelper.button(:see_slots) },
+          { id: "no_thanks", title: MessageHelper.button(:no_thanks) }
+        ]
+      )
+
+      # Keep context in slot_selection stage for retry
+      store_search_context(
+        provider_id: provider_id,
+        provider_name: provider_name,
+        work_day_id: work_day_id,
+        work_day_date: search_context[:work_day_date],
+        stage: "slot_selection_retry"
+      )
+
+      Rails.logger.info("[ClientAssistantOrchestrator] Slot #{slot_time} already reserved for #{@from}")
+    end
+  end
+
+  # Handle appointment confirmation response from client
+  # Client either confirms or cancels the reserved slot
+  # @param search_context [Hash] The stored search context with slot_time, provider_id, work_day_id
+  def handle_appointment_confirmation_response(search_context)
+    slot_timestamp = search_context[:slot_time]
+    slot_time = Time.at(slot_timestamp)
+    provider_id = search_context[:provider_id]
+    provider_name = search_context[:provider_name]
+    work_day_id = search_context[:work_day_id]
+
+    if confirmation_confirmed?(@body)
+      # User confirmed - try to create appointment
+      provider = Provider.find_by(id: provider_id)
+      client = Client.find_or_create_by!(phone: @from)
+
+      result = SlotReservationService.confirm_reservation(
+        slot_time,
+        work_day_id,
+        @from,
+        provider: provider,
+        client: client
+      )
+
+      if result[:success]
+        # Appointment created successfully
+        appointment = result[:appointment]
+        date_display = if appointment.scheduled_at.to_date == Date.tomorrow
+                         "mañana"
+        else
+                         appointment.scheduled_at.strftime("%A %d de %B")
+        end
+
+        WhatsAppService.send_message(
+          to: @from,
+          message: MessageHelper.get(
+            :appointment,
+            :appointment_confirmed,
+            date: date_display,
+            time: appointment.scheduled_at.strftime('%H:%M')
+          )
+        )
+
+        # Clear search context
+        clear_search_context
+
+        Rails.logger.info("[ClientAssistantOrchestrator] Appointment #{appointment.id} confirmed for #{@from}")
+      elsif result[:reason] == :expired
+        # Reservation expired - check if slot is still available
+        if SlotReservationService.slot_available?(slot_time, work_day_id)
+          # Slot still available - try to reserve again
+          reservation = SlotReservationService.reserve_slot(slot_time, work_day_id, @from)
+
+          if reservation[:success]
+            # Re-reserved successfully - create appointment immediately
+            result = SlotReservationService.confirm_reservation(
+              slot_time,
+              work_day_id,
+              @from,
+              provider: provider,
+              client: client
+            )
+
+            if result[:success]
+              appointment = result[:appointment]
+              date_display = if appointment.scheduled_at.to_date == Date.tomorrow
+                               "mañana"
+              else
+                               appointment.scheduled_at.strftime("%A %d de %B")
+              end
+
+              WhatsAppService.send_message(
+                to: @from,
+                message: MessageHelper.get(
+                  :appointment,
+                  :appointment_confirmed,
+                  date: date_display,
+                  time: appointment.scheduled_at.strftime('%H:%M')
+                )
+              )
+
+              clear_search_context
+              Rails.logger.info("[ClientAssistantOrchestrator] Appointment #{appointment.id} confirmed after re-reservation for #{@from}")
+            end
+          else
+            # Someone else took it in the meantime
+            WhatsAppService.send_message(
+              to: @from,
+              message: MessageHelper.get(:appointment, :reservation_expired_slot_taken)
+            )
+
+            WhatsAppService.send_message_with_buttons(
+              to: @from,
+              message: MessageHelper.prompt(:confirm_or_cancel),
+              buttons: [
+                { id: "see_other_slots", title: MessageHelper.button(:see_slots) },
+                { id: "no_thanks", title: MessageHelper.button(:no_thanks) }
+              ]
+            )
+
+            Rails.logger.info("[ClientAssistantOrchestrator] Slot #{slot_time} taken after expiration for #{@from}")
+          end
+        else
+          # Slot was taken by someone else
+          WhatsAppService.send_message(
+            to: @from,
+            message: MessageHelper.get(:appointment, :reservation_expired_slot_taken)
+          )
+
+          WhatsAppService.send_message_with_buttons(
+            to: @from,
+            message: MessageHelper.prompt(:confirm_or_cancel),
+            buttons: [
+              { id: "see_other_slots", title: MessageHelper.button(:see_slots) },
+              { id: "no_thanks", title: MessageHelper.button(:no_thanks) }
+            ]
+          )
+
+          Rails.logger.info("[ClientAssistantOrchestrator] Slot #{slot_time} taken after expiration for #{@from}")
+        end
+      else
+        # Other error (db_conflict, validation_error, etc.)
+        WhatsAppService.send_message(
+          to: @from,
+          message: MessageHelper.get(:appointment, :confirmation_error)
+        )
+
+        Rails.logger.error("[ClientAssistantOrchestrator] Failed to confirm appointment: #{result[:reason]}")
+      end
+    elsif confirmation_declined?(@body)
+      # User cancelled - release reservation
+      SlotReservationService.cancel_reservation(slot_time, work_day_id, @from)
+
+      WhatsAppService.send_message(
+        to: @from,
+        message: MessageHelper.get(:appointment, :reservation_cancelled)
+      )
+
+      WhatsAppService.send_message_with_buttons(
+        to: @from,
+        message: MessageHelper.prompt(:confirm_or_cancel),
+        buttons: [
+          { id: "see_other_slots", title: MessageHelper.button(:see_slots) },
+          { id: "no_thanks", title: MessageHelper.button(:no_thanks) }
+        ]
+      )
+
+      Rails.logger.info("[ClientAssistantOrchestrator] Reservation cancelled by user #{@from}")
+    else
+      # Unclear response - ask again
+      WhatsAppService.send_message(
+        to: @from,
+        message: MessageHelper.get(
+          :appointment,
+          :unclear_confirmation,
+          time: search_context[:slot_time_formatted]
+        )
+      )
+
+      WhatsAppService.send_message_with_buttons(
+        to: @from,
+        message: MessageHelper.prompt(:select_option),
+        buttons: [
+          { id: "confirm_appointment", title: MessageHelper.button(:confirm) },
+          { id: "cancel_reservation", title: MessageHelper.button(:cancel) }
+        ]
+      )
+    end
+  end
+
+  # Check if user confirmed the appointment
+  # @param body [String] User's message
+  # @return [Boolean] True if user confirmed
+  def confirmation_confirmed?(body)
+    return false if body.blank?
+
+    normalized_body = body.downcase.strip
+
+    # Check for button ID match
+    return true if normalized_body.include?("confirm_appointment")
+
+    # Check for natural language confirmation
+    confirmation_patterns = [
+      /\b(sí|si|yes|ok|dale|claro|exacto|confirmar|confirmo)\b/i
+    ]
+
+    confirmation_patterns.any? { |pattern| normalized_body.match?(pattern) }
+  end
+
+  # Check if user declined the appointment
+  # @param body [String] User's message
+  # @return [Boolean] True if user declined
+  def confirmation_declined?(body)
+    return false if body.blank?
+
+    normalized_body = body.downcase.strip
+
+    # Check for button ID match
+    return true if normalized_body.include?("cancel_reservation")
+
+    # Check for natural language decline
+    decline_patterns = [
+      /\b(no|nop|nope|cancelar|cancelo)\b/i,
+      /\bno\s+(quiero|gracias)\b/i
+    ]
+
+    decline_patterns.any? { |pattern| normalized_body.match?(pattern) }
   end
 end

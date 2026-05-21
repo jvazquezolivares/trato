@@ -370,6 +370,57 @@ module WhatsApp
     end
     private_class_method :truncate_label
 
+    # Builds a List Message with available appointment time slots.
+    # Used in client appointment scheduling flow (C1A) when WorkDay exists.
+    #
+    # @param slots [Array<Hash>] Array of slot hashes with :time and :display_time
+    # @param date [Date] The date for the available slots
+    # @param provider_name [String] The provider's name
+    # @return [Hash] List Message payload for Meta Cloud API
+    def self.build_available_slots_list(slots, date:, provider_name:)
+      # Format date for display (e.g., "mañana" or "jueves 21 de mayo")
+      date_display = if date == Date.tomorrow
+                       "mañana"
+      else
+                       date.strftime("%A %d de %B").downcase
+      end
+
+      # Format header title based on date
+      header_title = if date == Date.tomorrow
+                       "Horarios disponibles — mañana"
+      else
+                       "Horarios disponibles — #{date_display}"
+      end
+
+      # Build rows for each available slot
+      slot_rows = slots.map do |slot|
+        {
+          id: "slot_#{slot[:time].to_i}", # Unix timestamp as unique ID
+          title: slot[:display_time] # e.g., "09:00"
+        }
+      end
+
+      {
+        type: "list",
+        header: {
+          type: "text",
+          text: header_title
+        },
+        body: {
+          text: "#{provider_name} tiene #{slots.count} horario#{'s' if slots.count != 1} disponible#{'s' if slots.count != 1} para #{date_display}"
+        },
+        action: {
+          button: "Ver horarios",
+          sections: [
+            {
+              title: "Selecciona un horario",
+              rows: slot_rows
+            }
+          ]
+        }
+      }
+    end
+
     # Truncates description to 72 characters (Meta Cloud API limit).
     #
     # @param description [String] Original description text
