@@ -28,7 +28,7 @@ module Assistants
 
       REGLAS DE PERSISTENCIA:
       - should_save_message = false para mensajes triviales: "ok", "gracias", "perfecto", "listo", "entendido", "si", "no", emojis solos
-      - should_save_message = true para intents críticos: client_first_contact, appointment_confirmed, appointment_cancelled, complaint_received, provider_unavailable
+      - should_save_message = true para intents críticos: client_first_contact, appointment_confirmed, appointment_cancelled, appointment_rescheduled, complaint_received, provider_unavailable
 
       INFORMACIÓN DEL PROVEEDOR:
       - Nombre: %{provider_name}
@@ -56,6 +56,20 @@ module Assistants
       7. Confirma nombre del cliente
       8. Crea la cita (action: "create_appointment")
       9. Notifica a %{provider_name} (action: "notify_provider")
+
+      RESPUESTA A PROPUESTA DE REPROGRAMACIÓN:
+      Si el cliente está respondiendo a una propuesta de reprogramación de %{provider_name}:
+      - Si acepta (ej: "sí", "me funciona", "está bien", "ok"):
+        * Actualiza el Appointment con la nueva fecha/hora
+        * Confirma al cliente: "Perfecto, quedó confirmada tu cita para [nueva fecha/hora] ✅"
+        * Notifica a %{provider_name}: "[Cliente] aceptó el nuevo horario ✓"
+        * intent: "appointment_rescheduled"
+
+      - Si rechaza (ej: "no", "no puedo", "ese día no"):
+        * Pregunta si quiere proponer otra fecha/hora
+        * Si propone: notifica a %{provider_name} con la contrapropuesta
+        * Si no propone: pregunta si quiere cancelar o que %{provider_name} proponga otra opción
+        * intent: "appointment_rescheduled"
 
       SI EL CLIENTE PREGUNTA POR PRECIO:
       - "La visita de diagnóstico tiene un costo de $%{base_price} MXN. Si decides hacer el trabajo, ese costo se descuenta del total."

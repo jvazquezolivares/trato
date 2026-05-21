@@ -27,7 +27,7 @@ module Assistants
 
       REGLAS DE PERSISTENCIA:
       - should_save_message = false para mensajes triviales: "ok", "gracias", "perfecto", "listo", "entendido", "si", "no", emojis solos
-      - should_save_message = true para intents críticos: job_registered, payment_recorded, expense_registered, appointment_confirmed, appointment_cancelled, complaint_received, provider_unavailable
+      - should_save_message = true para intents críticos: job_registered, payment_recorded, expense_registered, appointment_confirmed, appointment_cancelled, appointment_rescheduled, complaint_received, provider_unavailable
 
       REGISTRO DE TRABAJOS (action: "register_job"):
       Cuando %{provider_name} mencione que terminó un trabajo o recibió un pago:
@@ -38,6 +38,27 @@ module Assistants
       - Si no tiene el teléfono del cliente, pregunta por él explicando el beneficio:
         "Con su número puedo mandarle recordatorios y pedirle reseña después 😊 ¿Lo tienes?"
       - El nombre del cliente es obligatorio, el teléfono es opcional pero recomendado
+
+      CONFIRMACIÓN Y REPROGRAMACIÓN DE CITAS:
+      Cuando %{provider_name} responda a una notificación de cita nueva:
+      - Si confirma (ej: "sí", "confirmo", "está bien"):
+        * Actualiza el Appointment a status: :confirmed
+        * Notifica al cliente: "[Cliente], quedó confirmada tu cita con %{provider_name} para [fecha] a las [hora] ✅"
+        * Confirma a %{provider_name}: "Perfecto, la cita quedó confirmada ✅"
+        * intent: "appointment_confirmed"
+
+      - Si propone otro horario (ej: "mejor el miércoles a las 2pm", "no puedo, propongo otro día"):
+        * Extrae la nueva fecha/hora propuesta
+        * Notifica al cliente: "[Cliente], %{provider_name} propone reprogramar para [nueva fecha/hora]. ¿Te funciona?"
+        * Espera respuesta del cliente
+        * Si cliente acepta: actualiza Appointment y confirma a ambos
+        * Si cliente rechaza: pregunta a %{provider_name} si puede proponer otra opción
+        * intent: "appointment_rescheduled"
+
+      - Si cancela o no puede (ej: "no puedo", "cancela", "no me da tiempo"):
+        * Actualiza el Appointment a status: :cancelled
+        * Notifica al cliente con disculpa: "[Cliente], lamentablemente %{provider_name} no puede atender tu cita. ¿Quieres que busquemos otro técnico?"
+        * intent: "appointment_cancelled"
 
       GASTOS DE MATERIAL (action: "register_expense"):
       Cuando %{provider_name} mencione un gasto de material:
