@@ -272,6 +272,8 @@ class ClientAssistantOrchestrator
       handle_region_confirmation_response(search_context)
     when "zone_selection"
       handle_zone_selection_response(search_context)
+    when "category_selection"
+      handle_category_selection_response(search_context)
     else
       Rails.logger.warn("[ClientAssistantOrchestrator] Unknown search stage: #{stage}")
       # Fallback to new search
@@ -433,17 +435,78 @@ class ClientAssistantOrchestrator
       detected_state: search_context[:detected_state],
       region_scope: search_context[:region_scope],
       selected_zone: selected_zone,
-      stage: "category_selection"
+      stage: "category_selection",
+      category_page: 1 # Start with page 1
     )
 
-    # TODO: Task 16 - Send category selection List Message
-    # For now, just confirm the zone selection
+    # Send categories List Message (page 1)
+    categories_payload = WhatsApp::ListMessageBuilder.build_categories_list(page: 1)
+
+    WhatsAppService.send_list_message(
+      to: @from,
+      payload: categories_payload
+    )
+
+    Rails.logger.info("[ClientAssistantOrchestrator] Zone selected: #{selected_zone} for client #{@from}. Sent categories page 1.")
+  end
+
+  # Handle category selection response
+  # @param search_context [Hash] The stored search context with selected_zone and category_page
+  def handle_category_selection_response(search_context)
+    # The user's message should contain the selected category ID or "Ver más categorías"
+    # WhatsApp List Messages send the row ID as the message body
+    selected_option = @body.strip
+
+    if selected_option.blank?
+      WhatsAppService.send_message(
+        to: @from,
+        message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+      )
+      return
+    end
+
+    # Check if user selected "Ver más categorías"
+    if selected_option == "ver_mas_categorias"
+      # Send page 2 of categories
+      categories_payload = WhatsApp::ListMessageBuilder.build_categories_list(page: 2)
+
+      WhatsAppService.send_list_message(
+        to: @from,
+        payload: categories_payload
+      )
+
+      # Update context to indicate we're on page 2
+      store_search_context(
+        detected_state: search_context[:detected_state],
+        region_scope: search_context[:region_scope],
+        selected_zone: search_context[:selected_zone],
+        stage: "category_selection",
+        category_page: 2
+      )
+
+      Rails.logger.info("[ClientAssistantOrchestrator] Sent categories page 2 for client #{@from}")
+      return
+    end
+
+    # User selected a category - proceed to provider query (Task 17)
+    # TODO: Task 17 - Query providers and display results
+    # For now, just confirm the category selection
     WhatsAppService.send_message(
       to: @from,
-      message: "Perfecto, buscas en #{selected_zone}. Ahora selecciona el tipo de servicio que necesitas."
+      message: "Perfecto, buscas #{selected_option} en #{search_context[:selected_zone]}. " \
+               "Estoy buscando técnicos disponibles..."
     )
 
-    Rails.logger.info("[ClientAssistantOrchestrator] Zone selected: #{selected_zone} for client #{@from}")
+    # Store selected category in context for Task 17
+    store_search_context(
+      detected_state: search_context[:detected_state],
+      region_scope: search_context[:region_scope],
+      selected_zone: search_context[:selected_zone],
+      selected_category: selected_option,
+      stage: "provider_query"
+    )
+
+    Rails.logger.info("[ClientAssistantOrchestrator] Category selected: #{selected_option} for client #{@from}")
   end
 
   # Handle region detection and send confirmation message

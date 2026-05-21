@@ -302,32 +302,45 @@ RSpec.describe WhatsApp::ListMessageBuilder do
         expect(section[:title]).to eq("Categorías")
       end
 
-      it "includes first 5 categories from ZonesService" do
+      it "includes first 5 categories from ZonesService plus 'Ver más' option" do
         result = described_class.build_categories_list(page: 1)
         rows = result[:action][:sections].first[:rows]
 
-        expect(rows.length).to eq(5)
+        # Page 1 should have 5 categories + "Ver más categorías" = 6 rows
+        expect(rows.length).to eq(6)
+
+        # Last row should be "Ver más categorías"
+        expect(rows.last[:id]).to eq("ver_mas_categorias")
+        expect(rows.last[:title]).to eq("Ver más categorías")
       end
 
-      it "formats each category with icon and name" do
+      it "formats each category with icon and name (except 'Ver más' option)" do
         result = described_class.build_categories_list(page: 1)
         rows = result[:action][:sections].first[:rows]
 
-        rows.each do |row|
+        # Check first 5 rows (actual categories) have emoji icons
+        rows.first(5).each do |row|
           expect(row).to have_key(:id)
           expect(row).to have_key(:title)
           expect(row[:title]).to match(/\p{Emoji}/) # Contains emoji icon
         end
+
+        # Last row is "Ver más categorías" (no emoji required)
+        expect(rows.last[:id]).to eq("ver_mas_categorias")
       end
 
-      it "uses category id as row id" do
+      it "uses category id as row id (for first 5 categories)" do
         categories = ZonesService.categories_page(1)
         result = described_class.build_categories_list(page: 1)
         rows = result[:action][:sections].first[:rows]
 
-        rows.each_with_index do |row, index|
+        # Check first 5 rows match category IDs
+        rows.first(5).each_with_index do |row, index|
           expect(row[:id]).to eq(categories[index]["id"])
         end
+
+        # Last row should be "ver_mas_categorias"
+        expect(rows.last[:id]).to eq("ver_mas_categorias")
       end
 
       it "respects 20-character title limit" do
@@ -437,19 +450,24 @@ RSpec.describe WhatsApp::ListMessageBuilder do
     end
 
     context "integration with ZonesService" do
-      it "uses categories from ZonesService.categories_page" do
+      it "uses categories from ZonesService.categories_page plus 'Ver más' option" do
         page_1_categories = ZonesService.categories_page(1)
         result = described_class.build_categories_list(page: 1)
         rows = result[:action][:sections].first[:rows]
 
-        expect(rows.length).to eq(page_1_categories.length)
+        # Page 1 should have 5 categories + "Ver más" = 6 rows
+        expect(rows.length).to eq(page_1_categories.length + 1)
 
-        rows.each_with_index do |row, index|
+        # First 5 rows should match categories
+        rows.first(5).each_with_index do |row, index|
           expect(row[:id]).to eq(page_1_categories[index]["id"])
         end
+
+        # Last row should be "Ver más categorías"
+        expect(rows.last[:id]).to eq("ver_mas_categorias")
       end
 
-      it "handles pagination correctly" do
+      it "handles pagination correctly (5 categories + 'Ver más' on page 1, remaining on page 2)" do
         all_categories = ZonesService.all_categories
 
         page_1_result = described_class.build_categories_list(page: 1)
@@ -458,8 +476,11 @@ RSpec.describe WhatsApp::ListMessageBuilder do
         page_2_result = described_class.build_categories_list(page: 2)
         page_2_rows = page_2_result[:action][:sections].first[:rows]
 
-        total_rows = page_1_rows.length + page_2_rows.length
-        expect(total_rows).to eq(all_categories.length)
+        # Page 1 has 5 categories + "Ver más" = 6 rows
+        # Page 2 has remaining categories (no "Ver más")
+        # Total unique categories = page_1_rows - 1 (exclude "Ver más") + page_2_rows
+        total_category_rows = (page_1_rows.length - 1) + page_2_rows.length
+        expect(total_category_rows).to eq(all_categories.length)
       end
 
       it "does not duplicate categories across pages" do
@@ -946,6 +967,111 @@ RSpec.describe WhatsApp::ListMessageBuilder do
           expect(row[:id]).to be_a(String)
           expect(row[:id].length).to be > 0
           expect(row[:id].length).to be < 255 # Typical string column limit
+        end
+      end
+    end
+  end
+
+  describe ".build_categories_list with 'Ver más categorías' option" do
+    context "when there are more than 5 categories" do
+      before do
+        # Ensure we have more than 5 categories in zones.json
+        all_categories = ZonesService.all_categories
+        skip "Test requires more than 5 categories in zones.json" if all_categories.length <= 5
+      end
+
+      it "includes 'Ver más categorías' option on page 1" do
+        result = described_class.build_categories_list(page: 1)
+        rows = result[:action][:sections].first[:rows]
+
+        # Should have 5 categories + 1 "Ver más" option = 6 rows
+        expect(rows.length).to eq(6)
+
+        # Last row should be "Ver más categorías"
+        ver_mas_option = rows.last
+        expect(ver_mas_option[:id]).to eq("ver_mas_categorias")
+        expect(ver_mas_option[:title]).to eq("Ver más categorías")
+      end
+
+      it "does not include 'Ver más categorías' option on page 2" do
+        result = described_class.build_categories_list(page: 2)
+        rows = result[:action][:sections].first[:rows]
+
+        # Should not have "Ver más" option on page 2
+        ver_mas_option = rows.find { |r| r[:id] == "ver_mas_categorias" }
+        expect(ver_mas_option).to be_nil
+      end
+
+      it "respects 20-character limit for 'Ver más categorías'" do
+        result = described_class.build_categories_list(page: 1)
+        rows = result[:action][:sections].first[:rows]
+
+        ver_mas_option = rows.last
+        expect(ver_mas_option[:title].length).to be <= 20
+      end
+    end
+
+    context "when there are exactly 5 or fewer categories" do
+      before do
+        # Mock ZonesService to return exactly 5 categories
+        allow(ZonesService).to receive(:all_categories).and_return([
+          { "id" => "cat1", "name" => "Category 1", "icon" => "🔧" },
+          { "id" => "cat2", "name" => "Category 2", "icon" => "⚡" },
+          { "id" => "cat3", "name" => "Category 3", "icon" => "🏗" },
+          { "id" => "cat4", "name" => "Category 4", "icon" => "❄️" },
+          { "id" => "cat5", "name" => "Category 5", "icon" => "🎨" }
+        ])
+        allow(ZonesService).to receive(:categories_page).and_call_original
+      end
+
+      it "does not include 'Ver más categorías' option on page 1" do
+        result = described_class.build_categories_list(page: 1)
+        rows = result[:action][:sections].first[:rows]
+
+        # Should have exactly 5 rows (no "Ver más" option)
+        expect(rows.length).to eq(5)
+
+        # Should not have "Ver más" option
+        ver_mas_option = rows.find { |r| r[:id] == "ver_mas_categorias" }
+        expect(ver_mas_option).to be_nil
+      end
+    end
+
+    context "requirement compliance for C2A flow" do
+      it "matches Requirement 9 acceptance criteria for page 1" do
+        all_categories = ZonesService.all_categories
+        skip "Test requires more than 5 categories" if all_categories.length <= 5
+
+        result = described_class.build_categories_list(page: 1)
+        rows = result[:action][:sections].first[:rows]
+
+        # AC7: Category List Message includes first 5 + "Ver más categorías"
+        expect(rows.length).to eq(6)
+
+        # Verify first 5 are actual categories
+        rows[0..4].each do |row|
+          expect(row[:id]).not_to eq("ver_mas_categorias")
+          expect(row[:title]).to match(/\p{Emoji}/) # Contains emoji
+        end
+
+        # Verify last is "Ver más categorías"
+        expect(rows.last[:id]).to eq("ver_mas_categorias")
+        expect(rows.last[:title]).to eq("Ver más categorías")
+      end
+
+      it "matches Requirement 9 acceptance criteria for page 2" do
+        all_categories = ZonesService.all_categories
+        skip "Test requires more than 5 categories" if all_categories.length <= 5
+
+        result = described_class.build_categories_list(page: 2)
+        rows = result[:action][:sections].first[:rows]
+
+        # AC8: Page 2 shows remaining categories (no "Ver más")
+        expect(rows.length).to eq(all_categories.length - 5)
+
+        # Verify none are "Ver más categorías"
+        rows.each do |row|
+          expect(row[:id]).not_to eq("ver_mas_categorias")
         end
       end
     end

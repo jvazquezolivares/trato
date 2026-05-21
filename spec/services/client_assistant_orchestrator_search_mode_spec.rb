@@ -728,6 +728,10 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         }
       end
 
+      before do
+        allow(WhatsAppService).to receive(:send_list_message)
+      end
+
       it "stores the selected zone in context" do
         orchestrator.send(:handle_zone_selection_response, search_context)
 
@@ -738,17 +742,21 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             detected_state: "Veracruz",
             region_scope: "state",
             selected_zone: "Centro Histórico",
-            stage: "category_selection"
+            stage: "category_selection",
+            category_page: 1
           }.to_json
         )
       end
 
-      it "sends confirmation message with selected zone" do
+      it "sends categories List Message" do
         orchestrator.send(:handle_zone_selection_response, search_context)
 
-        expect(WhatsAppService).to have_received(:send_message).with(
+        expect(WhatsAppService).to have_received(:send_list_message).with(
           to: from,
-          message: "Perfecto, buscas en Centro Histórico. Ahora selecciona el tipo de servicio que necesitas."
+          payload: hash_including(
+            type: "list",
+            header: hash_including(text: "¿Qué tipo de técnico?")
+          )
         )
       end
 
@@ -756,7 +764,7 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         orchestrator.send(:handle_zone_selection_response, search_context)
 
         expect(Rails.logger).to have_received(:info).with(
-          "[ClientAssistantOrchestrator] Zone selected: Centro Histórico for client #{from}"
+          "[ClientAssistantOrchestrator] Zone selected: Centro Histórico for client #{from}. Sent categories page 1."
         )
       end
 
@@ -770,7 +778,8 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             detected_state: "Veracruz",
             region_scope: "state",
             selected_zone: "Centro Histórico",
-            stage: "category_selection"
+            stage: "category_selection",
+            category_page: 1
           }.to_json
         )
       end
@@ -786,6 +795,10 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         }
       end
 
+      before do
+        allow(WhatsAppService).to receive(:send_list_message)
+      end
+
       it "stores the selected zone with all scope" do
         orchestrator.send(:handle_zone_selection_response, search_context)
 
@@ -796,17 +809,21 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             detected_state: "Veracruz",
             region_scope: "all",
             selected_zone: "Cholula",
-            stage: "category_selection"
+            stage: "category_selection",
+            category_page: 1
           }.to_json
         )
       end
 
-      it "sends confirmation message" do
+      it "sends categories List Message" do
         orchestrator.send(:handle_zone_selection_response, search_context)
 
-        expect(WhatsAppService).to have_received(:send_message).with(
+        expect(WhatsAppService).to have_received(:send_list_message).with(
           to: from,
-          message: "Perfecto, buscas en Cholula. Ahora selecciona el tipo de servicio que necesitas."
+          payload: hash_including(
+            type: "list",
+            header: hash_including(text: "¿Qué tipo de técnico?")
+          )
         )
       end
     end
@@ -821,6 +838,10 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         }
       end
 
+      before do
+        allow(WhatsAppService).to receive(:send_list_message)
+      end
+
       it "stores the zone name correctly" do
         orchestrator.send(:handle_zone_selection_response, search_context)
 
@@ -831,7 +852,8 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             detected_state: "Veracruz",
             region_scope: "state",
             selected_zone: "Boca del Río",
-            stage: "category_selection"
+            stage: "category_selection",
+            category_page: 1
           }.to_json
         )
       end
@@ -905,6 +927,10 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         }
       end
 
+      before do
+        allow(WhatsAppService).to receive(:send_list_message)
+      end
+
       it "preserves the detected_state in new context" do
         orchestrator.send(:handle_zone_selection_response, search_context)
 
@@ -915,7 +941,8 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             detected_state: "Hidalgo",
             region_scope: "state",
             selected_zone: "Pachuca Centro",
-            stage: "category_selection"
+            stage: "category_selection",
+            category_page: 1
           }.to_json
         )
       end
@@ -931,6 +958,10 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         }
       end
 
+      before do
+        allow(WhatsAppService).to receive(:send_list_message)
+      end
+
       it "preserves the region_scope in new context" do
         orchestrator.send(:handle_zone_selection_response, search_context)
 
@@ -941,7 +972,8 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
             detected_state: "Oaxaca",
             region_scope: "all",
             selected_zone: "Oaxaca Centro",
-            stage: "category_selection"
+            stage: "category_selection",
+            category_page: 1
           }.to_json
         )
       end
@@ -1121,6 +1153,391 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         # (not necessarily a subset of all_zones in our test data)
         expect(veracruz_zones).to eq(["Centro Histórico", "Boca del Río", "Costa Verde"])
         expect(all_zones).to include("Centro Histórico", "Boca del Río", "Cholula", "Pachuca Centro", "Oaxaca Centro")
+      end
+    end
+  end
+
+  # Task 16.1: Category selection after zone selection
+  describe "#handle_zone_selection_response with category list" do
+    let(:from) { "5212291234567" }
+    let(:body) { "Centro Histórico" }
+    let(:orchestrator) { described_class.new_search_mode(from: from, body: body) }
+    let(:search_context) do
+      {
+        detected_state: "Veracruz",
+        stage: "zone_selection",
+        region_scope: "state"
+      }
+    end
+
+    before do
+      allow(REDIS).to receive(:setex)
+      allow(WhatsAppService).to receive(:send_list_message)
+      allow(Rails.logger).to receive(:info)
+    end
+
+    it "sends categories List Message after zone selection" do
+      orchestrator.send(:handle_zone_selection_response, search_context)
+
+      expect(WhatsAppService).to have_received(:send_list_message).with(
+        to: from,
+        payload: hash_including(
+          type: "list",
+          header: hash_including(text: "¿Qué tipo de técnico?"),
+          body: hash_including(text: "Selecciona el servicio que necesitas")
+        )
+      )
+    end
+
+    it "stores category_page: 1 in context" do
+      orchestrator.send(:handle_zone_selection_response, search_context)
+
+      expect(REDIS).to have_received(:setex).with(
+        "client_search:#{from}",
+        86_400,
+        {
+          detected_state: "Veracruz",
+          region_scope: "state",
+          selected_zone: "Centro Histórico",
+          stage: "category_selection",
+          category_page: 1
+        }.to_json
+      )
+    end
+
+    it "logs zone selection with category message sent" do
+      orchestrator.send(:handle_zone_selection_response, search_context)
+
+      expect(Rails.logger).to have_received(:info).with(
+        "[ClientAssistantOrchestrator] Zone selected: Centro Histórico for client #{from}. Sent categories page 1."
+      )
+    end
+  end
+
+  describe "#handle_category_selection_response" do
+    let(:from) { "5212291234567" }
+    let(:orchestrator) { described_class.new_search_mode(from: from, body: body) }
+    let(:search_context) do
+      {
+        detected_state: "Veracruz",
+        region_scope: "state",
+        selected_zone: "Centro Histórico",
+        stage: "category_selection",
+        category_page: 1
+      }
+    end
+
+    before do
+      allow(WhatsAppService).to receive(:send_message)
+      allow(WhatsAppService).to receive(:send_list_message)
+      allow(REDIS).to receive(:setex)
+      allow(Rails.logger).to receive(:info)
+    end
+
+    context "when user selects a category" do
+      let(:body) { "plomeria" }
+
+      it "sends confirmation message with category and zone" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "Perfecto, buscas plomeria en Centro Histórico. Estoy buscando técnicos disponibles..."
+        )
+      end
+
+      it "logs category selection" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(Rails.logger).to have_received(:info).with(
+          "[ClientAssistantOrchestrator] Category selected: plomeria for client #{from}"
+        )
+      end
+
+      it "stores selected category in context" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(REDIS).to have_received(:setex).with(
+          "client_search:#{from}",
+          86_400,
+          {
+            detected_state: "Veracruz",
+            region_scope: "state",
+            selected_zone: "Centro Histórico",
+            selected_category: "plomeria",
+            stage: "provider_query"
+          }.to_json
+        )
+      end
+
+      it "updates stage to provider_query" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        # Verify the call was made with the correct stage
+        expect(REDIS).to have_received(:setex) do |key, ttl, json_data|
+          stored_context = JSON.parse(json_data, symbolize_names: true)
+          expect(stored_context[:stage]).to eq("provider_query")
+        end
+      end
+    end
+
+    context "when user selects electricidad category" do
+      let(:body) { "electricidad" }
+
+      it "sends confirmation with electricidad" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "Perfecto, buscas electricidad en Centro Histórico. Estoy buscando técnicos disponibles..."
+        )
+      end
+
+      it "stores electricidad in context" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(REDIS).to have_received(:setex).with(
+          "client_search:#{from}",
+          86_400,
+          {
+            detected_state: "Veracruz",
+            region_scope: "state",
+            selected_zone: "Centro Histórico",
+            selected_category: "electricidad",
+            stage: "provider_query"
+          }.to_json
+        )
+      end
+    end
+
+    # Task 16.4: Handle "Ver más categorías" selection
+    context "when user selects 'Ver más categorías'" do
+      let(:body) { "ver_mas_categorias" }
+
+      it "sends categories page 2 List Message" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_list_message).with(
+          to: from,
+          payload: hash_including(
+            type: "list",
+            header: hash_including(text: "¿Qué tipo de técnico?")
+          )
+        )
+      end
+
+      it "does not send confirmation message" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(WhatsAppService).not_to have_received(:send_message)
+      end
+
+      it "updates context to category_page: 2" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(REDIS).to have_received(:setex).with(
+          "client_search:#{from}",
+          86_400,
+          {
+            detected_state: "Veracruz",
+            region_scope: "state",
+            selected_zone: "Centro Histórico",
+            stage: "category_selection",
+            category_page: 2
+          }.to_json
+        )
+      end
+
+      it "keeps stage as category_selection" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        # Verify the call was made with the correct stage
+        expect(REDIS).to have_received(:setex) do |key, ttl, json_data|
+          stored_context = JSON.parse(json_data, symbolize_names: true)
+          expect(stored_context[:stage]).to eq("category_selection")
+        end
+      end
+
+      it "preserves detected_state in context" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        # Verify the call was made with the correct detected_state
+        expect(REDIS).to have_received(:setex) do |key, ttl, json_data|
+          stored_context = JSON.parse(json_data, symbolize_names: true)
+          expect(stored_context[:detected_state]).to eq("Veracruz")
+        end
+      end
+
+      it "preserves region_scope in context" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        # Verify the call was made with the correct region_scope
+        expect(REDIS).to have_received(:setex) do |key, ttl, json_data|
+          stored_context = JSON.parse(json_data, symbolize_names: true)
+          expect(stored_context[:region_scope]).to eq("state")
+        end
+      end
+
+      it "preserves selected_zone in context" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        # Verify the call was made with the correct selected_zone
+        expect(REDIS).to have_received(:setex) do |key, ttl, json_data|
+          stored_context = JSON.parse(json_data, symbolize_names: true)
+          expect(stored_context[:selected_zone]).to eq("Centro Histórico")
+        end
+      end
+
+      it "logs page 2 sent" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(Rails.logger).to have_received(:info).with(
+          "[ClientAssistantOrchestrator] Sent categories page 2 for client #{from}"
+        )
+      end
+
+      it "does not log category selection" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(Rails.logger).not_to have_received(:info).with(
+          /Category selected:/
+        )
+      end
+    end
+
+    context "when user selects 'Ver más categorías' with different region_scope" do
+      let(:body) { "ver_mas_categorias" }
+      let(:search_context) do
+        {
+          detected_state: "Puebla",
+          region_scope: "all",
+          selected_zone: "Cholula",
+          stage: "category_selection",
+          category_page: 1
+        }
+      end
+
+      it "preserves all context fields when showing page 2" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(REDIS).to have_received(:setex).with(
+          "client_search:#{from}",
+          86_400,
+          {
+            detected_state: "Puebla",
+            region_scope: "all",
+            selected_zone: "Cholula",
+            stage: "category_selection",
+            category_page: 2
+          }.to_json
+        )
+      end
+    end
+
+    context "when user is already on page 2 and selects a category" do
+      let(:body) { "construccion" }
+      let(:search_context) do
+        {
+          detected_state: "Veracruz",
+          region_scope: "state",
+          selected_zone: "Centro Histórico",
+          stage: "category_selection",
+          category_page: 2
+        }
+      end
+
+      it "sends confirmation message" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "Perfecto, buscas construccion en Centro Histórico. Estoy buscando técnicos disponibles..."
+        )
+      end
+
+      it "stores selected category and updates stage to provider_query" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(REDIS).to have_received(:setex).with(
+          "client_search:#{from}",
+          86_400,
+          {
+            detected_state: "Veracruz",
+            region_scope: "state",
+            selected_zone: "Centro Histórico",
+            selected_category: "construccion",
+            stage: "provider_query"
+          }.to_json
+        )
+      end
+    end
+
+    context "when category selection is blank" do
+      let(:body) { "" }
+
+      it "sends error message" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+        )
+      end
+
+      it "does not log category selection" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(Rails.logger).not_to have_received(:info)
+      end
+
+      it "does not update context" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(REDIS).not_to have_received(:setex)
+      end
+    end
+
+    context "when category selection is only whitespace" do
+      let(:body) { "   " }
+
+      it "sends error message" do
+        orchestrator.send(:handle_category_selection_response, search_context)
+
+        expect(WhatsAppService).to have_received(:send_message).with(
+          to: from,
+          message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
+        )
+      end
+    end
+  end
+
+  describe "#handle_search_flow_response with category_selection stage" do
+    let(:from) { "5212291234567" }
+    let(:body) { "plomeria" }
+    let(:orchestrator) { described_class.new_search_mode(from: from, body: body) }
+
+    before do
+      allow(WhatsAppService).to receive(:send_message)
+      allow(Rails.logger).to receive(:info)
+    end
+
+    context "when stage is category_selection" do
+      let(:search_context) do
+        {
+          detected_state: "Veracruz",
+          region_scope: "state",
+          selected_zone: "Centro Histórico",
+          stage: "category_selection",
+          category_page: 1
+        }
+      end
+
+      it "calls handle_category_selection_response" do
+        allow(orchestrator).to receive(:handle_category_selection_response)
+
+        orchestrator.send(:handle_search_flow_response, search_context)
+
+        expect(orchestrator).to have_received(:handle_category_selection_response).with(search_context)
       end
     end
   end

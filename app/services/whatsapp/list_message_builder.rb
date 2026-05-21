@@ -44,6 +44,21 @@ module WhatsApp
     def self.build_categories_list(page: 1)
       categories = ZonesService.categories_page(page)
 
+      rows = categories.map do |cat|
+        {
+          id: cat["id"],
+          title: truncate_label("#{cat['icon']} #{cat['name']}")
+        }
+      end
+
+      # Add "Ver más categorías" option on page 1 if there are more categories
+      if page == 1 && ZonesService.all_categories.length > 5
+        rows << {
+          id: "ver_mas_categorias",
+          title: "Ver más categorías"
+        }
+      end
+
       {
         type: "list",
         header: {
@@ -58,12 +73,7 @@ module WhatsApp
           sections: [
             {
               title: "Categorías",
-              rows: categories.map do |cat|
-                {
-                  id: cat["id"],
-                  title: truncate_label("#{cat['icon']} #{cat['name']}")
-                }
-              end
+              rows: rows
             }
           ]
         }
