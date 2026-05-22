@@ -14,6 +14,7 @@ class TelegramNotifier
   # @param client [Client] The client record requesting service
   # @param category [String] The service category requested
   # @param city [String] The city where service was requested
+  # @return [Net::HTTPResponse, nil] Returns response on success, nil on failure (never raises)
   def self.notify_unavailable_area(client:, category:, city:)
     message = build_message(client, category, city)
     send_telegram_message(message)

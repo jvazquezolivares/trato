@@ -511,8 +511,23 @@ class ClientAssistantOrchestrator
                  "¿Quieres que te avisemos cuando tengamos uno disponible?"
       )
 
-      # TODO: Implement C2F flow (Task 24)
-      Rails.logger.info("[ClientAssistantOrchestrator] No providers found for #{selected_category} in #{selected_zone}")
+      # Task 24.2: Create or find Client record for unavailable area tracking
+      client = Client.find_or_create_by!(phone: @from)
+
+      # Task 24.4: Send Telegram notification for unavailable area
+      # Get category name from ZonesService for display
+      category_data = ZonesService.all_categories.find { |cat| cat["id"] == selected_category }
+      category_name = category_data ? category_data["name"] : selected_category
+
+      # Task 24.5: Telegram notification failure doesn't block main flow
+      # TelegramNotifier handles all errors internally and returns nil on failure
+      TelegramNotifier.notify_unavailable_area(
+        client: client,
+        category: category_name,
+        city: selected_zone
+      )
+
+      Rails.logger.info("[ClientAssistantOrchestrator] No providers found for #{selected_category} in #{selected_zone}. Client record created/found: #{client.id}. Telegram notification attempted.")
       return
     end
 

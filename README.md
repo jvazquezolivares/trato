@@ -14,6 +14,29 @@ WhatsApp-based conversational business assistant for Mexican independent workers
 - AWS S3 + Active Storage — file uploads
 - Railway — hosting
 
+## Features
+
+### Dual WhatsApp Numbers
+
+Trato operates with two separate WhatsApp numbers:
+
+- **Provider Number** — For provider (technician) conversations: onboarding, appointment management, financial queries, social media posting
+- **Client Number** — For client conversations: provider discovery, appointment booking, emergency notifications, service reviews
+
+Messages are automatically routed to the appropriate conversation handler based on the `phone_number_id` from Meta Cloud API webhooks.
+
+### Region-Based Provider Discovery
+
+Clients messaging the client number receive region-based provider discovery:
+1. System detects client's region from phone prefix (Veracruz, Puebla, Hidalgo, Oaxaca)
+2. Client confirms or selects different region
+3. Client selects zone and service category
+4. System displays matching providers with dynamic availability
+
+### Telegram Admin Notifications
+
+When clients request services in unavailable areas, the system sends notifications to admin via Telegram bot, enabling quick response to expansion opportunities.
+
 ## Setup
 
 ### Prerequisites
@@ -33,13 +56,52 @@ bundle install
 
 ### Environment Variables
 
-Copy `.env` to `.env.local` and fill in your credentials:
+Copy `.env.example` to `.env.local` and fill in your credentials:
 
 ```bash
-cp .env .env.local
+cp .env.example .env.local
 ```
 
-Required variables: `DATABASE_URL`, `REDIS_URL`, `TRATO_WHATSAPP_NUMBER`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `ANTHROPIC_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL`.
+#### Required Variables
+
+**Database & Redis:**
+- `DATABASE_URL` — PostgreSQL connection string
+- `REDIS_URL` — Redis connection string for Sidekiq
+
+**WhatsApp / Meta Cloud API:**
+- `TRATO_WHATSAPP_NUMBER` — Your WhatsApp business number (display purposes)
+- `WHATSAPP_VERIFY_TOKEN` — Webhook verification token
+- `WHATSAPP_ACCESS_TOKEN` — Meta Cloud API access token
+- `WHATSAPP_PHONE_NUMBER_ID` — Legacy phone number ID (deprecated, use dual numbers below)
+- `WHATSAPP_PROVIDER_PHONE_NUMBER_ID` — Phone number ID for provider conversations
+- `WHATSAPP_CLIENT_PHONE_NUMBER_ID` — Phone number ID for client conversations
+
+**Claude AI:**
+- `ANTHROPIC_API_KEY` — Anthropic API key for conversational AI
+
+**AWS S3:**
+- `AWS_ACCESS_KEY_ID` — AWS access key
+- `AWS_SECRET_ACCESS_KEY` — AWS secret key
+- `AWS_REGION` — AWS region (default: us-east-1)
+- `AWS_BUCKET` — S3 bucket name for file uploads
+
+**Facebook OAuth:**
+- `FACEBOOK_APP_ID` — Facebook app ID for social media posting
+- `FACEBOOK_APP_SECRET` — Facebook app secret
+
+**Admin Panel:**
+- `ADMIN_USERNAME` — Admin panel username
+- `ADMIN_PASSWORD` — Admin panel password
+- `ADMIN_EMAIL` — Admin email address
+
+**Telegram Notifications:**
+- `TELEGRAM_BOT_TOKEN` — Telegram bot token for admin notifications
+- `TELEGRAM_CHAT_ID` — Telegram chat ID to receive notifications
+
+#### Optional Variables
+
+- `FEATURE_DIRECTORY_HOMEPAGE` — Enable directory homepage (default: false)
+- `STITCH_API_KEY` — Stitch design system API key
 
 ### Database
 
@@ -47,6 +109,18 @@ Required variables: `DATABASE_URL`, `REDIS_URL`, `TRATO_WHATSAPP_NUMBER`, `WHATS
 rails db:create
 rails db:migrate
 ```
+
+### Configuration Files
+
+**Zones Configuration** (`config/zones.json`):
+
+This file contains the geographic and service category data used for client discovery flows:
+- States: Veracruz, Puebla, Hidalgo, Oaxaca
+- Cities and zones within each state
+- Phone prefixes for automatic region detection
+- Service categories (Plomería, Electricidad, Construcción, etc.)
+
+The file is loaded into memory on application boot. Invalid JSON will cause the app to fail fast with a clear error message.
 
 ### Running
 

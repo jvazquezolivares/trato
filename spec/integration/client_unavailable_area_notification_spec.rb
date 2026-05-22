@@ -478,6 +478,62 @@ RSpec.describe "Client Unavailable Area Notification Flow Integration (C2F)", ty
           expect(result).to be_nil
         end
       end
+
+      context "when verifying C2F flow continues despite Telegram failure" do
+        before do
+          # Simulate Telegram API failure
+          stub_request(:post, telegram_url).to_return(status: 500, body: { ok: false, description: "Internal Server Error" }.to_json)
+        end
+
+        it "completes C2F flow even when Telegram notification fails" do
+          # This test explicitly verifies Task 24.5: Telegram failure doesn't block main flow
+          allow(Rails.logger).to receive(:info)
+          allow(Rails.logger).to receive(:error)
+
+          # The C2F flow should complete successfully
+          expect do
+            TelegramNotifier.notify_unavailable_area(
+              client: client_record,
+              category: "Plomería",
+              city: "Centro Histórico"
+            )
+          end.not_to raise_error
+
+          # Verify error was logged
+          expect(Rails.logger).to have_received(:error).with(
+            a_string_matching(/Telegram Server Error \(500\)/)
+          )
+
+          # Verify the method returns nil (non-blocking)
+          result = TelegramNotifier.notify_unavailable_area(
+            client: client_record,
+            category: "Plomería",
+            city: "Centro Histórico"
+          )
+          expect(result).to be_nil
+        end
+
+        it "allows subsequent operations after Telegram failure" do
+          # First call fails
+          result1 = TelegramNotifier.notify_unavailable_area(
+            client: client_record,
+            category: "Plomería",
+            city: "Centro Histórico"
+          )
+          expect(result1).to be_nil
+
+          # Second call should also work (not blocked by previous failure)
+          result2 = TelegramNotifier.notify_unavailable_area(
+            client: client_record,
+            category: "Electricidad",
+            city: "Boca del Río"
+          )
+          expect(result2).to be_nil
+
+          # Verify both requests were attempted
+          expect(WebMock).to have_requested(:post, telegram_url).twice
+        end
+      end
     end
   end
 end
