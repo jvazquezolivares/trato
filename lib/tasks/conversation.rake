@@ -18,32 +18,33 @@
 #
 # Note: In production, only whitelisted phone numbers can be reset for safety.
 
-namespace :conversation do
-  # Whitelist of phone numbers allowed to reset conversations in production
-  # These are typically test/development numbers or internal team numbers
-  PRODUCTION_WHITELIST = %w[
-    5212292272709
-    5215611661032
-  ].freeze
+# Whitelist of phone numbers allowed to reset conversations in production
+# These are typically test/development numbers or internal team numbers
+PRODUCTION_WHITELIST = %w[
+  5212292272709
+  5215611661032
+].freeze
 
-  # Normalize and check if phone is whitelisted for production operations
-  def self.check_production_whitelist(phone)
-    normalized = phone.gsub(/[\s\-\(\)\+]/, "")
+# Helper method to normalize and check if phone is whitelisted for production operations
+def check_production_whitelist(phone)
+  normalized = phone.gsub(/[\s\-\(\)\+]/, "")
 
-    unless PRODUCTION_WHITELIST.include?(normalized)
-      puts "❌ Error: Este número no está en la whitelist de producción"
-      puts ""
-      puts "Números permitidos:"
-      PRODUCTION_WHITELIST.each { |p| puts "  - #{p}" }
-      puts ""
-      puts "Si necesitas agregar este número a la whitelist, edita:"
-      puts "  trato/lib/tasks/conversation.rake"
-      puts ""
-      exit 1
-    end
-
-    normalized
+  unless PRODUCTION_WHITELIST.include?(normalized)
+    puts "❌ Error: Este número no está en la whitelist de producción"
+    puts ""
+    puts "Números permitidos:"
+    PRODUCTION_WHITELIST.each { |p| puts "  - #{p}" }
+    puts ""
+    puts "Si necesitas agregar este número a la whitelist, edita:"
+    puts "  trato/lib/tasks/conversation.rake"
+    puts ""
+    exit 1
   end
+
+  normalized
+end
+
+namespace :conversation do
 
   desc "Show conversation information for a specific phone number"
   task :info, [:phone] => :environment do |_t, args|
@@ -165,7 +166,7 @@ namespace :conversation do
 
     # In production, check whitelist
     normalized_phone = if Rails.env.production?
-                        Rake::Task["conversation"].check_production_whitelist(args[:phone])
+                        check_production_whitelist(args[:phone])
                       else
                         args[:phone].gsub(/[\s\-\(\)\+]/, "")
                       end
@@ -277,7 +278,7 @@ namespace :conversation do
 
     # In production, check whitelist
     normalized_phone = if Rails.env.production?
-                        Rake::Task["conversation"].check_production_whitelist(args[:phone])
+                        check_production_whitelist(args[:phone])
                       else
                         args[:phone].gsub(/[\s\-\(\)\+]/, "")
                       end
