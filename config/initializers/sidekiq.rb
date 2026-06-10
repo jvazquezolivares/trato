@@ -24,6 +24,7 @@ Sidekiq.configure_server do |config|
       }
     }
 
+    Rails.logger.info("[Sidekiq] Loading cron schedules: #{schedule.keys.join(', ')}")
     Sidekiq::Cron::Job.load_from_hash!(schedule)
   end
 end
