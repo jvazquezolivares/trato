@@ -9,18 +9,23 @@ class WhatsAppService
   def self.send_message(to:, message:)
     url = "#{BASE_URL}/#{ENV['WHATSAPP_PHONE_NUMBER_ID']}/messages"
 
+    payload = {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "text",
+      text: { body: message }
+    }
+
+    Rails.logger.info("[WhatsAppService] Sending message to #{to} via #{ENV['WHATSAPP_PHONE_NUMBER_ID']}")
+    Rails.logger.debug("[WhatsAppService] Payload: #{payload.to_json}")
+
     response = HTTParty.post(
       url,
       headers: {
         "Authorization" => "Bearer #{ENV['WHATSAPP_ACCESS_TOKEN']}",
         "Content-Type" => "application/json"
       },
-      body: {
-        messaging_product: "whatsapp",
-        to: to,
-        type: "text",
-        text: { body: message }
-      }.to_json
+      body: payload.to_json
     )
 
     unless response.success?
@@ -28,6 +33,8 @@ class WhatsAppService
         "[WhatsAppService] Failed to send message to #{to}: " \
         "HTTP #{response.code} — #{response.body}"
       )
+    else
+      Rails.logger.info("[WhatsAppService] Successfully sent message to #{to}")
     end
 
     response

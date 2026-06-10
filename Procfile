@@ -1,5 +1,6 @@
 # Procfile for Railway deployment
-# This version runs both web and worker in the same container
+# Railway will execute the 'web' process by default
 
-# For single-container deployment (simpler but less scalable)
-web: bundle exec thrust bin/rails server -p ${PORT:-3000} -b 0.0.0.0 & bundle exec sidekiq -C config/sidekiq.yml
+# Web process runs both Rails server and Sidekiq using bash
+# The trap ensures both processes are cleaned up on shutdown
+web: bash -c 'trap "kill 0" EXIT; bundle exec thrust bin/rails server -p ${PORT:-3000} -b 0.0.0.0 & bundle exec sidekiq -C config/sidekiq.yml & wait'
