@@ -14,38 +14,47 @@ class ProviderConversationHandler
   ONBOARDING_TTL = 86_400 # 24 hours in seconds
 
   def self.call(from:, body:, media_url: nil)
-    puts "[DEBUG ProviderConversationHandler] ===== INICIO ====="
-    puts "[DEBUG ProviderConversationHandler] Mensaje recibido de: #{from}, body: #{body&.truncate(50)}"
+    STDOUT.puts "[DEBUG ProviderConversationHandler] ===== INICIO ====="
+    STDOUT.flush
+    STDOUT.puts "[DEBUG ProviderConversationHandler] Mensaje recibido de: #{from}, body: #{body&.truncate(50)}"
+    STDOUT.flush
 
     provider = provider_by_phone(from)
 
     if provider
-      puts "[DEBUG ProviderConversationHandler] Provider encontrado: #{provider.name} (ID: #{provider.id})"
+      STDOUT.puts "[DEBUG ProviderConversationHandler] Provider encontrado: #{provider.name} (ID: #{provider.id})"
+      STDOUT.flush
       return route_to_provider(from, body, media_url)
     end
 
-    puts "[DEBUG ProviderConversationHandler] Provider NO encontrado. Rutear a handle_unknown"
+    STDOUT.puts "[DEBUG ProviderConversationHandler] Provider NO encontrado. Rutear a handle_unknown"
+    STDOUT.flush
     handle_unknown(from: from, body: body)
   end
 
   def self.handle_unknown(from:, body:)
-    puts "[DEBUG ProviderConversationHandler] handle_unknown llamado para: #{from}"
+    STDOUT.puts "[DEBUG ProviderConversationHandler] handle_unknown llamado para: #{from}"
+    STDOUT.flush
     state = load_onboarding_state(from)
-    puts "[DEBUG ProviderConversationHandler] Estado Redis: #{state.inspect}"
+    STDOUT.puts "[DEBUG ProviderConversationHandler] Estado Redis: #{state.inspect}"
+    STDOUT.flush
 
     # If no state exists, send welcome message and initialize onboarding
     if state.nil? || state["stage"] == "new"
-      puts "[DEBUG ProviderConversationHandler] Estado es nil o 'new'. Enviando mensaje de bienvenida..."
+      STDOUT.puts "[DEBUG ProviderConversationHandler] Estado es nil o 'new'. Enviando mensaje de bienvenida..."
+      STDOUT.flush
       return send_welcome_and_store_state(from)
     end
 
     # All subsequent messages proceed directly to onboarding
     # No routing question stage needed since dual numbers handle provider/client separation
     if onboarding_in_progress?(state)
-      puts "[DEBUG ProviderConversationHandler] Onboarding en progreso. Llamando a OnboardingService"
+      STDOUT.puts "[DEBUG ProviderConversationHandler] Onboarding en progreso. Llamando a OnboardingService"
+      STDOUT.flush
       OnboardingService.call(from: from, body: body)
     else
-      puts "[DEBUG ProviderConversationHandler] WARN: Estado inesperado: #{state['stage']}"
+      STDOUT.puts "[DEBUG ProviderConversationHandler] WARN: Estado inesperado: #{state['stage']}"
+      STDOUT.flush
     end
   end
 

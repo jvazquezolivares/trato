@@ -19,8 +19,15 @@ class WebhooksController < ApplicationController
   # Always returns HTTP 200 immediately to satisfy Meta's 5-second window.
   # Extracts message data and routes to appropriate job based on phone_number_id.
   def receive
+    puts "[DEBUG WebhooksController] ===== WEBHOOK RECEIVED ====="
+    puts "[DEBUG WebhooksController] Params: #{params.to_unsafe_h.inspect}"
+
     phone_number_id = extract_phone_number_id
     message_data = extract_message_data
+
+    puts "[DEBUG WebhooksController] phone_number_id: #{phone_number_id}"
+    puts "[DEBUG WebhooksController] message_data: #{message_data.inspect}"
+
     return head :ok unless message_data[:from].present?
 
     route_message(
