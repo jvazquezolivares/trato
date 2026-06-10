@@ -244,7 +244,7 @@ RSpec.describe MorningSummaryJob, type: :job do
     end
   end
 
-  describe "message tone and format" do
+  describe "summary text tone and format" do
     let(:provider) do
       instance_double(Provider, id: 7, name: "Test Provider", phone: "5212210000000")
     end
@@ -256,23 +256,10 @@ RSpec.describe MorningSummaryJob, type: :job do
     context "when there are no pending tasks" do
       before { stub_pending_tasks(provider, []) }
 
-      it "uses no more than 2 emojis" do
-        expect(WhatsAppService).to receive(:send_message) do |args|
-          emoji_count = args[:message].scan(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/).size
-          expect(emoji_count).to be <= 2
-        end
-
-        described_class.new.perform
-      end
-
-      it "never scolds the provider" do
-        expect(WhatsAppService).to receive(:send_message) do |args|
-          message = args[:message].downcase
-          scolding_words = %w[tarde falta olvidaste deberías debiste reportar]
-          scolding_words.each do |word|
-            expect(message).not_to include(word),
-              "Message should not contain scolding word '#{word}'"
-          end
+      it "generates a simple summary asking about tasks" do
+        expect(WhatsAppService).to receive(:send_template_message) do |args|
+          summary_text = args[:parameters][1]
+          expect(summary_text).to include("¿Tienes pendientes para hoy?")
         end
 
         described_class.new.perform
@@ -286,23 +273,11 @@ RSpec.describe MorningSummaryJob, type: :job do
 
       before { stub_pending_tasks(provider, tasks) }
 
-      it "uses no more than 2 emojis" do
-        expect(WhatsAppService).to receive(:send_message) do |args|
-          emoji_count = args[:message].scan(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/).size
-          expect(emoji_count).to be <= 2
-        end
-
-        described_class.new.perform
-      end
-
-      it "never scolds the provider" do
-        expect(WhatsAppService).to receive(:send_message) do |args|
-          message = args[:message].downcase
-          scolding_words = %w[tarde falta olvidaste deberías debiste reportar]
-          scolding_words.each do |word|
-            expect(message).not_to include(word),
-              "Message should not contain scolding word '#{word}'"
-          end
+      it "includes pending task count and list" do
+        expect(WhatsAppService).to receive(:send_template_message) do |args|
+          summary_text = args[:parameters][1]
+          expect(summary_text).to include("3 pendientes")
+          expect(summary_text).to include("• Tarea 1")
         end
 
         described_class.new.perform
