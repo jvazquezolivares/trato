@@ -81,11 +81,15 @@ class ReviewRequestJob < ApplicationJob
     client = job.client
     provider = job.provider
 
+    # Get primary category name
+    primary_category = provider.provider_categories.find(&:primary?)
+    category_name = primary_category&.name || "Técnico"
+
     # Use template message (review_request) with client name, provider name, and primary category
     WhatsAppService.send_template_message(
       to: client.phone,
       template_name: "review_request",
-      parameters: [client.name, provider.name, provider.primary_category],
+      parameters: [client.name, provider.name, category_name],
       phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
     )
 
