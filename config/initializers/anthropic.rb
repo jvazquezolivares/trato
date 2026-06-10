@@ -2,5 +2,5 @@
 
 # Configure Anthropic API client
 Anthropic.setup do |config|
-  config.api_key = ENV.fetch("ANTHROPIC_API_KEY")
+  config.api_key = ENV["ANTHROPIC_API_KEY"]
 end

@@ -43,10 +43,12 @@ class Provider < ApplicationRecord
   # Built dynamically so all links update automatically if the number changes.
   # The message includes the provider name and short_uuid so clients see a clear,
   # personalized message while the system can still identify the provider.
+  # Uses the CLIENT number because this link is for clients to contact the provider.
   def assistant_whatsapp_link
     message = "Envía este mensaje para contactar al asistente de #{name} (#{short_uuid})"
     encoded_message = URI.encode_www_form_component(message)
-    "https://wa.me/#{ENV['TRATO_WHATSAPP_NUMBER']}?text=#{encoded_message}"
+    whatsapp_number = ENV['TRATO_WHATSAPP_CLIENT_NUMBER'] || ENV['TRATO_WHATSAPP_NUMBER']
+    "https://wa.me/#{whatsapp_number}?text=#{encoded_message}"
   end
 
   # Builds the SEO-friendly slug from primary category, city, name, and short_uuid.

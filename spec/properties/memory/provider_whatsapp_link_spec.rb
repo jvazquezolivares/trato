@@ -22,10 +22,10 @@ RSpec.describe Provider, "P4: assistant_whatsapp_link format", type: :property d
         expect(link).to match(%r{\Ahttps://wa\.me/}),
           "Expected link to start with 'https://wa.me/' but got '#{link}'"
 
-        # 2. Link must contain the TRATO_WHATSAPP_NUMBER
-        whatsapp_number = ENV["TRATO_WHATSAPP_NUMBER"]
+        # 2. Link must contain the WhatsApp number (CLIENT number if available, else legacy)
+        whatsapp_number = ENV["TRATO_WHATSAPP_CLIENT_NUMBER"] || ENV["TRATO_WHATSAPP_NUMBER"]
         expect(link).to include(whatsapp_number),
-          "Expected link to contain TRATO_WHATSAPP_NUMBER '#{whatsapp_number}' but got '#{link}'"
+          "Expected link to contain WhatsApp number '#{whatsapp_number}' but got '#{link}'"
 
         # 3. Link must contain the provider's short_uuid
         expect(link).to include(provider.short_uuid),
@@ -75,17 +75,17 @@ RSpec.describe Provider, "P4: assistant_whatsapp_link format", type: :property d
     end
   end
 
-  context "when TRATO_WHATSAPP_NUMBER changes" do
+  context "when TRATO_WHATSAPP_CLIENT_NUMBER or TRATO_WHATSAPP_NUMBER changes" do
     PropertyTestHelper::MEMORY_ITERATIONS.times do |iteration|
       it "always uses the current ENV value (iteration #{iteration + 1})" do
         provider = build_stubbed(:provider)
 
         link = provider.assistant_whatsapp_link
 
-        # The link must contain the current ENV value
-        current_number = ENV["TRATO_WHATSAPP_NUMBER"]
+        # The link must contain the current ENV value (CLIENT number has priority)
+        current_number = ENV["TRATO_WHATSAPP_CLIENT_NUMBER"] || ENV["TRATO_WHATSAPP_NUMBER"]
         expect(link).to include(current_number),
-          "Expected link to use current TRATO_WHATSAPP_NUMBER '#{current_number}' but got '#{link}'"
+          "Expected link to use current WhatsApp number '#{current_number}' but got '#{link}'"
       end
     end
   end

@@ -10,7 +10,9 @@ RSpec.describe Provider, type: :model do
       link = provider.assistant_whatsapp_link
 
       expect(link).to start_with("https://wa.me/")
-      expect(link).to include(ENV["TRATO_WHATSAPP_NUMBER"])
+      # Should use CLIENT number if available, otherwise fall back to legacy TRATO_WHATSAPP_NUMBER
+      whatsapp_number = ENV["TRATO_WHATSAPP_CLIENT_NUMBER"] || ENV["TRATO_WHATSAPP_NUMBER"]
+      expect(link).to include(whatsapp_number)
       expect(link).to include(provider.short_uuid)
     end
 
@@ -52,7 +54,39 @@ RSpec.describe Provider, type: :model do
 
       link = provider.assistant_whatsapp_link
 
-      expect(link).to include(ENV["TRATO_WHATSAPP_NUMBER"])
+      whatsapp_number = ENV["TRATO_WHATSAPP_CLIENT_NUMBER"] || ENV["TRATO_WHATSAPP_NUMBER"]
+      expect(link).to include(whatsapp_number)
+    end
+
+    context "when TRATO_WHATSAPP_CLIENT_NUMBER is set" do
+      it "uses the client number (not the legacy TRATO_WHATSAPP_NUMBER)" do
+        provider = build_stubbed(:provider)
+
+        # Simulate dual number setup
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("TRATO_WHATSAPP_CLIENT_NUMBER").and_return("5215551111111")
+        allow(ENV).to receive(:[]).with("TRATO_WHATSAPP_NUMBER").and_return("5215552222222")
+
+        link = provider.assistant_whatsapp_link
+
+        expect(link).to include("5215551111111")  # Client number
+        expect(link).not_to include("5215552222222")  # Should NOT use legacy number
+      end
+    end
+
+    context "when TRATO_WHATSAPP_CLIENT_NUMBER is not set" do
+      it "falls back to TRATO_WHATSAPP_NUMBER for backward compatibility" do
+        provider = build_stubbed(:provider)
+
+        # Simulate pre-dual-number setup (only legacy variable exists)
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("TRATO_WHATSAPP_CLIENT_NUMBER").and_return(nil)
+        allow(ENV).to receive(:[]).with("TRATO_WHATSAPP_NUMBER").and_return("5215553333333")
+
+        link = provider.assistant_whatsapp_link
+
+        expect(link).to include("5215553333333")  # Falls back to legacy number
+      end
     end
 
     context "when TRATO_WHATSAPP_NUMBER changes" do
@@ -62,6 +96,7 @@ RSpec.describe Provider, type: :model do
 
         # Simulate ENV change
         allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("TRATO_WHATSAPP_CLIENT_NUMBER").and_return(nil)
         allow(ENV).to receive(:[]).with("TRATO_WHATSAPP_NUMBER").and_return("5215551234567")
 
         new_link = provider.assistant_whatsapp_link
