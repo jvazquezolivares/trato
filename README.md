@@ -72,9 +72,8 @@ cp .env.example .env.local
 - `TRATO_WHATSAPP_NUMBER` — Your WhatsApp business number (display purposes)
 - `WHATSAPP_VERIFY_TOKEN` — Webhook verification token
 - `WHATSAPP_ACCESS_TOKEN` — Meta Cloud API access token
-- `WHATSAPP_PHONE_NUMBER_ID` — Legacy phone number ID (deprecated, use dual numbers below)
-- `WHATSAPP_PROVIDER_PHONE_NUMBER_ID` — Phone number ID for provider conversations
-- `WHATSAPP_CLIENT_PHONE_NUMBER_ID` — Phone number ID for client conversations
+- `WHATSAPP_PROVIDER_PHONE_NUMBER_ID` — Phone number ID for provider conversations (sending to technicians)
+- `WHATSAPP_CLIENT_PHONE_NUMBER_ID` — Phone number ID for client conversations (sending to clients)
 
 **Claude AI:**
 - `ANTHROPIC_API_KEY` — Anthropic API key for conversational AI
