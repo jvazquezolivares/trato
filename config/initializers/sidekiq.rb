@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-return if defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile")
+return if ENV["SECRET_KEY_BASE_DUMMY"] == "1"
 
 Sidekiq.configure_server do |config|
   config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0") }
