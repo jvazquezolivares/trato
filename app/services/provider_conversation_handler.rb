@@ -14,36 +14,38 @@ class ProviderConversationHandler
   ONBOARDING_TTL = 86_400 # 24 hours in seconds
 
   def self.call(from:, body:, media_url: nil)
-    Rails.logger.info("[ProviderConversationHandler] Mensaje recibido de: #{from}, body: #{body&.truncate(50)}")
+    puts "[DEBUG ProviderConversationHandler] ===== INICIO ====="
+    puts "[DEBUG ProviderConversationHandler] Mensaje recibido de: #{from}, body: #{body&.truncate(50)}"
 
     provider = provider_by_phone(from)
 
     if provider
-      Rails.logger.info("[ProviderConversationHandler] Provider encontrado: #{provider.name} (ID: #{provider.id})")
+      puts "[DEBUG ProviderConversationHandler] Provider encontrado: #{provider.name} (ID: #{provider.id})"
       return route_to_provider(from, body, media_url)
     end
 
-    Rails.logger.info("[ProviderConversationHandler] Provider no encontrado. Rutear a handle_unknown")
+    puts "[DEBUG ProviderConversationHandler] Provider NO encontrado. Rutear a handle_unknown"
     handle_unknown(from: from, body: body)
   end
 
   def self.handle_unknown(from:, body:)
+    puts "[DEBUG ProviderConversationHandler] handle_unknown llamado para: #{from}"
     state = load_onboarding_state(from)
-    Rails.logger.info("[ProviderConversationHandler] Estado Redis para #{from}: #{state.inspect}")
+    puts "[DEBUG ProviderConversationHandler] Estado Redis: #{state.inspect}"
 
     # If no state exists, send welcome message and initialize onboarding
     if state.nil? || state["stage"] == "new"
-      Rails.logger.info("[ProviderConversationHandler] Enviando mensaje de bienvenida a #{from}")
+      puts "[DEBUG ProviderConversationHandler] Estado es nil o 'new'. Enviando mensaje de bienvenida..."
       return send_welcome_and_store_state(from)
     end
 
     # All subsequent messages proceed directly to onboarding
     # No routing question stage needed since dual numbers handle provider/client separation
     if onboarding_in_progress?(state)
-      Rails.logger.info("[ProviderConversationHandler] Onboarding en progreso. Llamando a OnboardingService")
+      puts "[DEBUG ProviderConversationHandler] Onboarding en progreso. Llamando a OnboardingService"
       OnboardingService.call(from: from, body: body)
     else
-      Rails.logger.warn("[ProviderConversationHandler] Estado inesperado: #{state['stage']}")
+      puts "[DEBUG ProviderConversationHandler] WARN: Estado inesperado: #{state['stage']}"
     end
   end
 
