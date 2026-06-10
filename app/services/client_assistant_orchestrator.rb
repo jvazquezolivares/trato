@@ -238,7 +238,7 @@ class ClientAssistantOrchestrator
   end
 
   def send_provider_phone
-    WhatsAppService.send_message(
+    send_client_message(
       to: @from,
       message: "El número directo de #{@provider.name} es: #{@provider.phone}. " \
                "También puedo decirle que te llame, ¿qué prefieres?"
@@ -249,8 +249,7 @@ class ClientAssistantOrchestrator
     message = response["message"]
     return if message.blank? || @from.blank?
 
-    WhatsAppService.send_message(
-      to: @from,
+    send_client_message(to: @from,
       message: message,
       phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
     )
@@ -274,7 +273,7 @@ class ClientAssistantOrchestrator
   end
 
   def send_client_list_message(to:, payload:)
-    send_client_list_message(
+    WhatsAppService.send_list_message(
       to: to,
       payload: payload,
       phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
@@ -282,7 +281,7 @@ class ClientAssistantOrchestrator
   end
 
   def send_client_message_with_buttons(to:, message:, buttons:)
-    send_client_message_with_buttons(
+    WhatsAppService.send_message_with_buttons(
       to: to,
       message: message,
       buttons: buttons,
@@ -352,8 +351,7 @@ class ClientAssistantOrchestrator
       if zones.empty?
         # No zones found for this state (shouldn't happen with valid config)
         Rails.logger.error("[ClientAssistantOrchestrator] No zones found for state: #{detected_state}")
-        WhatsAppService.send_message(
-          to: @from,
+        send_client_message(to: @from,
           message: "Lo siento, no tengo zonas configuradas para #{detected_state}. " \
                    "¿Puedes decirme en qué ciudad específica necesitas el servicio?"
         )
@@ -383,8 +381,7 @@ class ClientAssistantOrchestrator
 
       if zones.empty?
         Rails.logger.error("[ClientAssistantOrchestrator] No zones found in zones.json")
-        WhatsAppService.send_message(
-          to: @from,
+        send_client_message(to: @from,
           message: "Lo siento, tengo un problema técnico. ¿Puedes intentar más tarde?"
         )
         return
@@ -409,8 +406,7 @@ class ClientAssistantOrchestrator
       )
     else
       # Unclear response - ask again
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: "No entendí tu respuesta. ¿Buscas un técnico en #{detected_state}?"
       )
 
@@ -478,8 +474,7 @@ class ClientAssistantOrchestrator
     selected_zone = @body.strip
 
     if selected_zone.blank?
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: "No pude identificar la zona. ¿Puedes seleccionar una opción de la lista?"
       )
       return
@@ -513,8 +508,7 @@ class ClientAssistantOrchestrator
     selected_option = @body.strip
 
     if selected_option.blank?
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
       )
       return
@@ -552,8 +546,7 @@ class ClientAssistantOrchestrator
 
     if providers.empty?
       # No providers found - trigger C2F flow (waiting for technician)
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: "Lo siento, aún no tenemos técnicos de #{selected_category} en #{selected_zone}. " \
                  "¿Quieres que te avisemos cuando tengamos uno disponible?"
       )
@@ -607,8 +600,7 @@ class ClientAssistantOrchestrator
     selected_option = @body.strip
 
     if selected_option.blank?
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
       )
       return
@@ -653,8 +645,7 @@ class ClientAssistantOrchestrator
       provider = Provider.find_by(id: provider_id)
 
       if provider.nil?
-        WhatsAppService.send_message(
-          to: @from,
+        send_client_message(to: @from,
           message: "Lo siento, no pude encontrar ese técnico. ¿Puedes seleccionar otro?"
         )
         return
@@ -665,8 +656,7 @@ class ClientAssistantOrchestrator
 
       Rails.logger.info("[ClientAssistantOrchestrator] Provider selected: #{provider.name} (ID: #{provider.id}) for client #{@from}. Transitioning to appointment flow.")
     else
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: "No pude identificar tu selección. ¿Puedes seleccionar una opción de la lista?"
       )
     end
@@ -686,8 +676,7 @@ class ClientAssistantOrchestrator
 
     if provider.nil?
       Rails.logger.error("[ClientAssistantOrchestrator] Provider not found: #{provider_id}")
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: "Lo siento, hubo un problema. ¿Puedes intentar de nuevo?"
       )
       clear_search_context
@@ -705,8 +694,7 @@ class ClientAssistantOrchestrator
       handle_escalation_declined(provider_name)
     else
       # Unclear response - ask again
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: "No entendí tu respuesta. ¿Quieres que le avise a #{provider_name}?"
       )
 
@@ -804,8 +792,7 @@ class ClientAssistantOrchestrator
     provider_message = "Hola #{provider.name}, un cliente quiere agendar una cita contigo pero #{reason_text}. " \
                        "Su número es: #{@from}. ¿Puedes contactarlo directamente?"
 
-    WhatsAppService.send_message(
-      to: provider.phone,
+    send_provider_message(to: provider.phone,
       message: provider_message
     )
 
@@ -813,8 +800,7 @@ class ClientAssistantOrchestrator
     client_message = "Perfecto, le avisé a #{provider.name}. " \
                      "Te contactará pronto para coordinar la cita. 😊"
 
-    WhatsAppService.send_message(
-      to: @from,
+    send_client_message(to: @from,
       message: client_message
     )
 
@@ -831,8 +817,7 @@ class ClientAssistantOrchestrator
     message = "Entendido. Si cambias de opinión, puedes escribirme de nuevo. " \
               "¡Que tengas un buen día! 😊"
 
-    WhatsAppService.send_message(
-      to: @from,
+    send_client_message(to: @from,
       message: message
     )
 
@@ -885,8 +870,7 @@ class ClientAssistantOrchestrator
     clear_search_context
 
     # Send confirmation message
-    WhatsAppService.send_message(
-      to: @from,
+    send_client_message(to: @from,
       message: "Perfecto, seleccionaste a #{provider.name}. " \
                "Ahora vamos a agendar tu cita..."
     )
@@ -933,8 +917,7 @@ class ClientAssistantOrchestrator
         Rails.logger.info("[ClientAssistantOrchestrator] Sent #{available_slots.count} available slots to #{@from} for WorkDay #{work_day.id}")
       else
         # No available slots (fully booked) - send escalation message
-        WhatsAppService.send_message(
-          to: @from,
+        send_client_message(to: @from,
           message: "Lo siento, #{provider.name} no tiene horarios disponibles para #{work_day.date == Date.tomorrow ? 'mañana' : work_day.date.strftime('%A %d de %B')}. " \
                    "¿Quieres que le avise para que te contacte directamente?"
         )
@@ -1191,8 +1174,7 @@ class ClientAssistantOrchestrator
 
     # Validate slot ID format
     unless selected_slot_id.start_with?("slot_")
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: MessageHelper.get(:appointment, :slot_selection_error)
       )
       return
@@ -1218,8 +1200,7 @@ class ClientAssistantOrchestrator
                        Date.parse(search_context[:work_day_date]).strftime("%A %d de %B")
       end
 
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: MessageHelper.get(
           :appointment,
           :slot_reserved,
@@ -1254,8 +1235,7 @@ class ClientAssistantOrchestrator
       # Slot was taken by someone else - send friendly message with provider name
       provider = Provider.find_by(id: provider_id)
 
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: MessageHelper.get(
           :appointment,
           :slot_taken_by_other,
@@ -1317,8 +1297,7 @@ class ClientAssistantOrchestrator
                          appointment.scheduled_at.strftime("%A %d de %B")
         end
 
-        WhatsAppService.send_message(
-          to: @from,
+        send_client_message(to: @from,
           message: MessageHelper.get(
             :appointment,
             :appointment_confirmed,
@@ -1355,8 +1334,7 @@ class ClientAssistantOrchestrator
                                appointment.scheduled_at.strftime("%A %d de %B")
               end
 
-              WhatsAppService.send_message(
-                to: @from,
+              send_client_message(to: @from,
                 message: MessageHelper.get(
                   :appointment,
                   :appointment_confirmed,
@@ -1370,8 +1348,7 @@ class ClientAssistantOrchestrator
             end
           else
             # Someone else took it in the meantime
-            WhatsAppService.send_message(
-              to: @from,
+            send_client_message(to: @from,
               message: MessageHelper.get(:appointment, :reservation_expired_slot_taken)
             )
 
@@ -1388,8 +1365,7 @@ class ClientAssistantOrchestrator
           end
         else
           # Slot was taken by someone else
-          WhatsAppService.send_message(
-            to: @from,
+          send_client_message(to: @from,
             message: MessageHelper.get(:appointment, :reservation_expired_slot_taken)
           )
 
@@ -1406,8 +1382,7 @@ class ClientAssistantOrchestrator
         end
       else
         # Other error (db_conflict, validation_error, etc.)
-        WhatsAppService.send_message(
-          to: @from,
+        send_client_message(to: @from,
           message: MessageHelper.get(:appointment, :confirmation_error)
         )
 
@@ -1417,8 +1392,7 @@ class ClientAssistantOrchestrator
       # User cancelled - release reservation
       SlotReservationService.cancel_reservation(slot_time, work_day_id, @from)
 
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: MessageHelper.get(:appointment, :reservation_cancelled)
       )
 
@@ -1434,8 +1408,7 @@ class ClientAssistantOrchestrator
       Rails.logger.info("[ClientAssistantOrchestrator] Reservation cancelled by user #{@from}")
     else
       # Unclear response - ask again
-      WhatsAppService.send_message(
-        to: @from,
+      send_client_message(to: @from,
         message: MessageHelper.get(
           :appointment,
           :unclear_confirmation,
