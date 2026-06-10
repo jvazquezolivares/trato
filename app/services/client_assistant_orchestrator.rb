@@ -226,15 +226,15 @@ class ClientAssistantOrchestrator
       "#{caption}\n#{photo.url}"
     end
 
-    WhatsAppService.send_multipart(to: @from, messages: photo_messages)
+    send_client_multipart(to: @from, messages: photo_messages)
 
     profile_url = "trato.mx/p/#{@provider.slug}"
-    WhatsAppService.send_message(to: @from, message: "Puedes ver más fotos y reseñas aquí: #{profile_url}")
+    send_client_message(to: @from, message: "Puedes ver más fotos y reseñas aquí: #{profile_url}")
   end
 
   def notify_provider(action_data)
     message = action_data["message"] || "Un cliente necesita tu atención."
-    WhatsAppService.send_message(to: @provider.phone, message: message)
+    send_provider_message(to: @provider.phone, message: message)
   end
 
   def send_provider_phone
@@ -249,7 +249,11 @@ class ClientAssistantOrchestrator
     message = response["message"]
     return if message.blank? || @from.blank?
 
-    WhatsAppService.send_message(to: @from, message: message)
+    WhatsAppService.send_message(
+      to: @from,
+      message: message,
+      phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
+    )
   end
 
   def persist(response, conversation)
@@ -257,6 +261,49 @@ class ClientAssistantOrchestrator
       conversation: conversation,
       response: response,
       inbound_body: @body
+    )
+  end
+
+  # Helper method to send messages to clients using the client phone number ID
+  def send_client_message(to:, message:)
+    WhatsAppService.send_message(
+      to: to,
+      message: message,
+      phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
+    )
+  end
+
+  def send_client_list_message(to:, payload:)
+    send_client_list_message(
+      to: to,
+      payload: payload,
+      phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
+    )
+  end
+
+  def send_client_message_with_buttons(to:, message:, buttons:)
+    send_client_message_with_buttons(
+      to: to,
+      message: message,
+      buttons: buttons,
+      phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
+    )
+  end
+
+  def send_client_multipart(to:, messages:)
+    WhatsAppService.send_multipart(
+      to: to,
+      messages: messages,
+      phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
+    )
+  end
+
+  # Helper method to send messages to providers using the provider phone number ID
+  def send_provider_message(to:, message:)
+    WhatsAppService.send_message(
+      to: to,
+      message: message,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
     )
   end
 
@@ -319,7 +366,7 @@ class ClientAssistantOrchestrator
         title: "Zonas en #{detected_state}"
       )
 
-      WhatsAppService.send_list_message(
+      send_client_list_message(
         to: @from,
         payload: zones_payload
       )
@@ -349,7 +396,7 @@ class ClientAssistantOrchestrator
         title: "Todas las zonas"
       )
 
-      WhatsAppService.send_list_message(
+      send_client_list_message(
         to: @from,
         payload: zones_payload
       )
@@ -368,7 +415,7 @@ class ClientAssistantOrchestrator
       )
 
       # Resend buttons
-      WhatsAppService.send_message_with_buttons(
+      send_client_message_with_buttons(
         to: @from,
         message: "Por favor selecciona una opción:",
         buttons: [
@@ -450,7 +497,7 @@ class ClientAssistantOrchestrator
     # Send categories List Message (page 1)
     categories_payload = WhatsApp::ListMessageBuilder.build_categories_list(page: 1)
 
-    WhatsAppService.send_list_message(
+    send_client_list_message(
       to: @from,
       payload: categories_payload
     )
@@ -478,7 +525,7 @@ class ClientAssistantOrchestrator
       # Send page 2 of categories
       categories_payload = WhatsApp::ListMessageBuilder.build_categories_list(page: 2)
 
-      WhatsAppService.send_list_message(
+      send_client_list_message(
         to: @from,
         payload: categories_payload
       )
@@ -664,7 +711,7 @@ class ClientAssistantOrchestrator
       )
 
       # Resend buttons
-      WhatsAppService.send_message_with_buttons(
+      send_client_message_with_buttons(
         to: @from,
         message: "Por favor selecciona una opción:",
         buttons: [
@@ -869,7 +916,7 @@ class ClientAssistantOrchestrator
           provider_name: provider.name
         )
 
-        WhatsAppService.send_list_message(
+        send_client_list_message(
           to: @from,
           payload: slots_payload
         )
@@ -892,7 +939,7 @@ class ClientAssistantOrchestrator
                    "¿Quieres que le avise para que te contacte directamente?"
         )
 
-        WhatsAppService.send_message_with_buttons(
+        send_client_message_with_buttons(
           to: @from,
           message: "¿Qué prefieres?",
           buttons: [
@@ -1015,7 +1062,7 @@ class ClientAssistantOrchestrator
     message = "#{provider.name} no tiene su agenda configurada para mañana. " \
               "¿Quieres que le avise para que te contacte directamente?"
 
-    WhatsAppService.send_message_with_buttons(
+    send_client_message_with_buttons(
       to: @from,
       message: message,
       buttons: [
@@ -1090,7 +1137,7 @@ class ClientAssistantOrchestrator
       category: category_name
     )
 
-    WhatsAppService.send_list_message(
+    send_client_list_message(
       to: @from,
       payload: providers_payload
     )
@@ -1103,7 +1150,7 @@ class ClientAssistantOrchestrator
                        "¿Buscas un técnico en esta región?"
 
     # Send greeting with Quick Reply Buttons
-    WhatsAppService.send_message_with_buttons(
+    send_client_message_with_buttons(
       to: @from,
       message: greeting_message,
       buttons: [
@@ -1181,7 +1228,7 @@ class ClientAssistantOrchestrator
         )
       )
 
-      WhatsAppService.send_message_with_buttons(
+      send_client_message_with_buttons(
         to: @from,
         message: MessageHelper.prompt(:confirm_or_cancel),
         buttons: [
@@ -1216,7 +1263,7 @@ class ClientAssistantOrchestrator
         )
       )
 
-      WhatsAppService.send_message_with_buttons(
+      send_client_message_with_buttons(
         to: @from,
         message: MessageHelper.prompt(:confirm_or_cancel),
         buttons: [
@@ -1328,7 +1375,7 @@ class ClientAssistantOrchestrator
               message: MessageHelper.get(:appointment, :reservation_expired_slot_taken)
             )
 
-            WhatsAppService.send_message_with_buttons(
+            send_client_message_with_buttons(
               to: @from,
               message: MessageHelper.prompt(:confirm_or_cancel),
               buttons: [
@@ -1346,7 +1393,7 @@ class ClientAssistantOrchestrator
             message: MessageHelper.get(:appointment, :reservation_expired_slot_taken)
           )
 
-          WhatsAppService.send_message_with_buttons(
+          send_client_message_with_buttons(
             to: @from,
             message: MessageHelper.prompt(:confirm_or_cancel),
             buttons: [
@@ -1375,7 +1422,7 @@ class ClientAssistantOrchestrator
         message: MessageHelper.get(:appointment, :reservation_cancelled)
       )
 
-      WhatsAppService.send_message_with_buttons(
+      send_client_message_with_buttons(
         to: @from,
         message: MessageHelper.prompt(:confirm_or_cancel),
         buttons: [
@@ -1396,7 +1443,7 @@ class ClientAssistantOrchestrator
         )
       )
 
-      WhatsAppService.send_message_with_buttons(
+      send_client_message_with_buttons(
         to: @from,
         message: MessageHelper.prompt(:select_option),
         buttons: [

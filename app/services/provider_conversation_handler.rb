@@ -67,7 +67,11 @@ class ProviderConversationHandler
   end
 
   def self.send_welcome_and_store_state(phone)
-    WhatsAppService.send_message(to: phone, message: WELCOME_MESSAGE)
+    WhatsAppService.send_message(
+      to: phone,
+      message: WELCOME_MESSAGE,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
     REDIS.setex("onboarding_state:#{phone}", ONBOARDING_TTL, { stage: "onboarding_welcome" }.to_json)
   end
 

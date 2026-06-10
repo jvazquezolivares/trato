@@ -6,8 +6,14 @@ class WhatsAppService
   BASE_URL = "https://graph.facebook.com/v19.0"
 
   # Sends a single text message to a WhatsApp recipient.
-  def self.send_message(to:, message:)
-    url = "#{BASE_URL}/#{ENV['WHATSAPP_PHONE_NUMBER_ID']}/messages"
+  #
+  # @param to [String] Recipient phone number
+  # @param message [String] Message text content
+  # @param phone_number_id [String, nil] Override default phone number ID (defaults to ENV['WHATSAPP_PHONE_NUMBER_ID'])
+  # @return [HTTParty::Response] API response
+  def self.send_message(to:, message:, phone_number_id: nil)
+    phone_id = phone_number_id || ENV["WHATSAPP_PHONE_NUMBER_ID"]
+    url = "#{BASE_URL}/#{phone_id}/messages"
 
     payload = {
       messaging_product: "whatsapp",
@@ -16,7 +22,7 @@ class WhatsAppService
       text: { body: message }
     }
 
-    Rails.logger.info("[WhatsAppService] Sending message to #{to} via #{ENV['WHATSAPP_PHONE_NUMBER_ID']}")
+    Rails.logger.info("[WhatsAppService] Sending message to #{to} via phone_id: #{phone_id}")
     Rails.logger.debug("[WhatsAppService] Payload: #{payload.to_json}")
 
     response = HTTParty.post(
@@ -30,7 +36,7 @@ class WhatsAppService
 
     unless response.success?
       Rails.logger.error(
-        "[WhatsAppService] Failed to send message to #{to}: " \
+        "[WhatsAppService] Failed to send message to #{to} (phone_id: #{phone_id}): " \
         "HTTP #{response.code} — #{response.body}"
       )
     else
@@ -42,9 +48,13 @@ class WhatsAppService
 
   # Sends multiple messages sequentially with a 1.5-second pause between each.
   # Used for multi-part explanations per assistant tone guidelines.
-  def self.send_multipart(to:, messages:)
+  #
+  # @param to [String] Recipient phone number
+  # @param messages [Array<String>] Array of message texts
+  # @param phone_number_id [String, nil] Override default phone number ID (defaults to ENV['WHATSAPP_PHONE_NUMBER_ID'])
+  def self.send_multipart(to:, messages:, phone_number_id: nil)
     messages.each_with_index do |msg, index|
-      send_message(to: to, message: msg)
+      send_message(to: to, message: msg, phone_number_id: phone_number_id)
       sleep(1.5) if index < messages.length - 1
     end
   end
@@ -56,9 +66,11 @@ class WhatsAppService
   # @param message [String] Message text to display above buttons
   # @param buttons [Array<Hash>] Array of button hashes with :id and :title keys
   #   Example: [{ id: "yes", title: "Sí" }, { id: "no", title: "No" }]
+  # @param phone_number_id [String, nil] Override default phone number ID (defaults to ENV['WHATSAPP_PHONE_NUMBER_ID'])
   # @return [HTTParty::Response] API response
-  def self.send_message_with_buttons(to:, message:, buttons:)
-    url = "#{BASE_URL}/#{ENV['WHATSAPP_PHONE_NUMBER_ID']}/messages"
+  def self.send_message_with_buttons(to:, message:, buttons:, phone_number_id: nil)
+    phone_id = phone_number_id || ENV["WHATSAPP_PHONE_NUMBER_ID"]
+    url = "#{BASE_URL}/#{phone_id}/messages"
 
     # Format buttons for Meta Cloud API
     formatted_buttons = buttons.map do |btn|
@@ -95,7 +107,7 @@ class WhatsAppService
 
     unless response.success?
       Rails.logger.error(
-        "[WhatsAppService] Failed to send message with buttons to #{to}: " \
+        "[WhatsAppService] Failed to send message with buttons to #{to} (phone_id: #{phone_id}): " \
         "HTTP #{response.code} — #{response.body}"
       )
     end
@@ -108,9 +120,11 @@ class WhatsAppService
   #
   # @param to [String] Recipient phone number
   # @param payload [Hash] List Message payload from WhatsApp::ListMessageBuilder
+  # @param phone_number_id [String, nil] Override default phone number ID (defaults to ENV['WHATSAPP_PHONE_NUMBER_ID'])
   # @return [HTTParty::Response] API response
-  def self.send_list_message(to:, payload:)
-    url = "#{BASE_URL}/#{ENV['WHATSAPP_PHONE_NUMBER_ID']}/messages"
+  def self.send_list_message(to:, payload:, phone_number_id: nil)
+    phone_id = phone_number_id || ENV["WHATSAPP_PHONE_NUMBER_ID"]
+    url = "#{BASE_URL}/#{phone_id}/messages"
 
     response = HTTParty.post(
       url,
@@ -128,7 +142,7 @@ class WhatsAppService
 
     unless response.success?
       Rails.logger.error(
-        "[WhatsAppService] Failed to send list message to #{to}: " \
+        "[WhatsAppService] Failed to send list message to #{to} (phone_id: #{phone_id}): " \
         "HTTP #{response.code} — #{response.body}"
       )
     end
