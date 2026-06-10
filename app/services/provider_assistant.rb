@@ -150,7 +150,8 @@ class ProviderAssistant
 
     WhatsAppService.send_list_message(
       to: @provider.phone,
-      payload: payload
+      payload: payload,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
     )
 
     # Update conversation stage to await selection
@@ -282,7 +283,11 @@ class ProviderAssistant
     message = response["message"]
     return if message.blank?
 
-    WhatsAppService.send_message(to: @provider.phone, message: message)
+    WhatsAppService.send_message(
+      to: @provider.phone,
+      message: message,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
   end
 
   def persist(response, conversation)

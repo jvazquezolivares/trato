@@ -133,7 +133,11 @@ class OnboardingService
   end
 
   def send_message(message)
-    WhatsAppService.send_message(to: @from, message: message)
+    WhatsAppService.send_message(
+      to: @from,
+      message: message,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
   end
 
   # --- Field collection stages ---
@@ -586,7 +590,11 @@ class OnboardingService
       "📱 *Redes sociales:* Mándame una foto de tu trabajo y yo la publico en tu Facebook con un texto profesional."
     ]
 
-    WhatsAppService.send_multipart(to: @from, messages: messages)
+    WhatsAppService.send_multipart(
+      to: @from,
+      messages: messages,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
   end
 
   def send_auto_reply_suggestion(provider)
@@ -666,22 +674,38 @@ class OnboardingService
 
   def send_decline_reasons_list
     payload = WhatsApp::ListMessageBuilder.build_decline_reasons_list
-    WhatsAppService.send_list_message(to: @from, payload: payload)
+    WhatsAppService.send_list_message(
+      to: @from,
+      payload: payload,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
   end
 
   def send_primary_trade_list(categories)
     payload = WhatsApp::ListMessageBuilder.build_primary_trade_list(categories)
-    WhatsAppService.send_list_message(to: @from, payload: payload)
+    WhatsAppService.send_list_message(
+      to: @from,
+      payload: payload,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
   end
 
   def send_price_range_list
     payload = WhatsApp::ListMessageBuilder.build_price_range_list
-    WhatsAppService.send_list_message(to: @from, payload: payload)
+    WhatsAppService.send_list_message(
+      to: @from,
+      payload: payload,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
   end
 
   def send_experience_range_list
     payload = WhatsApp::ListMessageBuilder.build_experience_range_list
-    WhatsAppService.send_list_message(to: @from, payload: payload)
+    WhatsAppService.send_list_message(
+      to: @from,
+      payload: payload,
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
   end
 
   def extract_price_range(body)
