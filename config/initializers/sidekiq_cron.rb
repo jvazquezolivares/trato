@@ -8,6 +8,8 @@
 #   - PaymentReminderJob: Fridays at 11 am
 #   - FacebookTokenRefreshJob: daily at 6 am (pending implementation)
 
+return if ENV["SECRET_KEY_BASE_DUMMY"] == "1"
+
 Rails.application.config.after_initialize do
   Sidekiq::Cron::Job.load_from_hash(
     "morning_summary" => {
