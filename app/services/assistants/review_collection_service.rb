@@ -97,10 +97,11 @@ module Assistants
         "rating" => rating
       )
 
+      rating_ack = I18n.t("elisa.client.review.rating_ack", rating: rating)
+      comment_request = I18n.t("elisa.client.review.comment_request", name: @provider.name)
+
       build_response(
-        message: "¡Gracias por tu calificación de #{rating} ⭐! " \
-                 "Tu comentario le ayuda mucho a #{@provider.name} a conseguir más clientes. " \
-                 "¿Qué fue lo que más te gustó del trabajo? 💬",
+        message: "#{rating_ack} #{comment_request}",
         should_save: false,
         intent: nil
       )
@@ -121,7 +122,7 @@ module Assistants
       clear_review_context
 
       build_response(
-        message: "¡Listo! Tu reseña quedó registrada. Muchas gracias por tomarte el tiempo 🙏",
+        message: I18n.t("elisa.client.review.completion"),
         should_save: true,
         intent: "review_collected"
       )
@@ -201,7 +202,7 @@ module Assistants
 
     def invalid_rating_response
       build_response(
-        message: "Por favor responde con un número del 1 al 5 para tu calificación ⭐",
+        message: I18n.t("elisa.client.review.invalid_rating_error"),
         should_save: false,
         intent: nil
       )

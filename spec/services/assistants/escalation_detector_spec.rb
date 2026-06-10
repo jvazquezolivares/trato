@@ -8,6 +8,9 @@ RSpec.describe Assistants::EscalationDetector do
   let(:from) { "5212219876543" }
 
   before do
+    # Set locale to Spanish for I18n translations
+    I18n.locale = :es
+
     allow(WhatsAppService).to receive(:send_message).and_return(true)
     allow(conversation).to receive(:update!).and_return(true)
   end
@@ -111,7 +114,8 @@ RSpec.describe Assistants::EscalationDetector do
 
       expect(WhatsAppService).to have_received(:send_message).with(
         to: provider.phone,
-        message: a_string_matching(/URGENTE.*emergencia/m)
+        message: a_string_matching(/URGENTE.*emergencia/m),
+        phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
       )
     end
 
@@ -123,7 +127,8 @@ RSpec.describe Assistants::EscalationDetector do
 
       expect(WhatsAppService).to have_received(:send_message).with(
         to: provider.phone,
-        message: a_string_matching(/5212219876543/)
+        message: a_string_matching(/5212219876543/),
+        phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
       )
     end
 
@@ -135,7 +140,8 @@ RSpec.describe Assistants::EscalationDetector do
 
       expect(WhatsAppService).to have_received(:send_message).with(
         to: provider.phone,
-        message: a_string_matching(/Queja de cliente/)
+        message: a_string_matching(/Queja de cliente/),
+        phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
       )
     end
 
@@ -147,7 +153,8 @@ RSpec.describe Assistants::EscalationDetector do
 
       expect(WhatsAppService).to have_received(:send_message).with(
         to: provider.phone,
-        message: a_string_matching(/Cliente molesto/)
+        message: a_string_matching(/Cliente molesto/),
+        phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
       )
     end
 
@@ -167,7 +174,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: from,
-          message: a_string_matching(/🚨 Mariana, esto suena urgente/)
+          message: a_string_matching(/🚨 Mariana, esto suena urgente/),
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
       end
 
@@ -179,7 +187,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: a_string_matching(/🚨 URGENTE: Tu cliente Mariana reporta humo/)
+          message: a_string_matching(/🚨 URGENTE: Tu cliente Mariana reporta humo/),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
 
@@ -191,7 +200,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: a_string_matching(/Su número: 📞 #{from}/)
+          message: a_string_matching(/Su número: 📞 #{from}/),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
 
@@ -203,7 +213,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: a_string_matching(/Contáctala de inmediato/)
+          message: a_string_matching(/Llámale de inmediato/),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
 
@@ -215,7 +226,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: from,
-          message: a_string_matching(/llama a Miguel AHORA/)
+          message: a_string_matching(/llama a Miguel AHORA/),
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
       end
 
@@ -227,7 +239,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: from,
-          message: a_string_matching(/📞 5212211234567/)
+          message: a_string_matching(/📞 5212211234567/),
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
       end
 
@@ -239,7 +252,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: from,
-          message: a_string_matching(/Si hay riesgo de incendio: llama al 911/)
+          message: a_string_matching(/Si hay riesgo de incendio: llama al 911/),
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
       end
 
@@ -299,7 +313,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: a_string_matching(/reporta fuga de gas/)
+          message: a_string_matching(/reporta fuga de gas/),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
 
@@ -314,7 +329,8 @@ RSpec.describe Assistants::EscalationDetector do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: a_string_matching(/reporta una emergencia/)
+          message: a_string_matching(/reporta una emergencia/),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
 
@@ -329,7 +345,8 @@ RSpec.describe Assistants::EscalationDetector do
 
           expect(WhatsAppService).to have_received(:send_message).with(
             to: from,
-            message: a_string_matching(/🚨 Cliente, esto suena urgente/)
+            message: a_string_matching(/🚨 Cliente, esto suena urgente/),
+            phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
           )
         end
 
@@ -341,7 +358,8 @@ RSpec.describe Assistants::EscalationDetector do
 
           expect(WhatsAppService).to have_received(:send_message).with(
             to: provider.phone,
-            message: a_string_matching(/Tu cliente Cliente reporta/)
+            message: a_string_matching(/Tu cliente Cliente reporta/),
+            phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
           )
         end
       end
@@ -361,7 +379,8 @@ RSpec.describe Assistants::EscalationDetector do
         expect(WhatsAppService).to have_received(:send_message).once
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: a_string_matching(/URGENTE/)
+          message: a_string_matching(/URGENTE/),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
     end
@@ -382,7 +401,8 @@ RSpec.describe Assistants::EscalationDetector do
         expect(WhatsAppService).to have_received(:send_message).once
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: a_string_matching(/Queja de cliente/)
+          message: a_string_matching(/Queja de cliente/),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
 
@@ -437,13 +457,15 @@ RSpec.describe Assistants::EscalationDetector do
         # Verify client received emergency alert
         expect(WhatsAppService).to have_received(:send_message).with(
           to: from,
-          message: a_string_matching(/🚨 Mariana, esto suena urgente.*llama a Miguel AHORA.*📞 5212211234567.*Si hay riesgo de incendio: llama al 911/m)
+          message: a_string_matching(/🚨 Mariana, esto suena urgente.*llama a Miguel AHORA.*📞 5212211234567.*Si hay riesgo de incendio: llama al 911/m),
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
 
         # Verify provider received emergency alert with detected keyword
         expect(WhatsAppService).to have_received(:send_message).with(
           to: provider.phone,
-          message: a_string_matching(/🚨 URGENTE: Tu cliente Mariana reporta (humo|chispas).*Su número: 📞 #{from}.*Contáctala de inmediato/m)
+          message: a_string_matching(/🚨 URGENTE: Tu cliente Mariana reporta (humo|chispas).*Su número: 📞 #{from}.*Llámale de inmediato/m),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         # Verify logging occurred

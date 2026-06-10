@@ -151,11 +151,11 @@ class OnboardingService
       return
     end
 
-    advance_to("collecting_name", message: "¡Qué bueno que quieres registrarte! 🎉 ¿Cómo te llamas?")
+    advance_to("collecting_name", message: I18n.t("elisa.provider.onboarding.name_prompt"))
   end
 
   def collect_decline_reason
-    return send_message("Por favor selecciona una razón de la lista.") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.decline_reason_prompt")) if @body.blank?
 
     # Store the decline reason in Redis (temporary)
     data["decline_reason"] = @body
@@ -172,8 +172,7 @@ class OnboardingService
     )
 
     # Send warm closing message
-    closing_message = "¡Gracias por contarme! 😊 Cuando quieras crear tu cuenta, escríbeme aquí y con gusto te ayudo. ¡Que te vaya muy bien! — Elisa"
-    send_message(closing_message)
+    send_message(I18n.t("elisa.provider.onboarding.decline_closing"))
 
     # Mark conversation as closed and clean up Redis
     @state["stage"] = "closed"
@@ -181,17 +180,17 @@ class OnboardingService
   end
 
   def collect_name
-    return send_message("Necesito tu nombre para continuar. ¿Cómo te llamas?") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.name_required")) if @body.blank?
 
     data["name"] = @body
     advance_to(
       "collecting_categories",
-      message: "Mucho gusto, #{@body} 👋 ¿A qué te dedicas? Puedes mencionar varios oficios, por ejemplo: fontanero, electricista, albañil."
+      message: I18n.t("elisa.provider.onboarding.greeting", name: @body)
     )
   end
 
   def collect_categories
-    return send_message("¿A qué te dedicas? Puedes mencionar varios oficios.") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.categories_required")) if @body.blank?
 
     categories = parse_categories(@body)
     data["categories"] = categories
@@ -205,13 +204,13 @@ class OnboardingService
       # Single category - automatically set as primary and continue
       advance_to(
         "collecting_city",
-        message: "¿En qué ciudad trabajas?"
+        message: I18n.t("elisa.provider.onboarding.city_prompt")
       )
     end
   end
 
   def collect_primary_trade
-    return send_message("Por favor selecciona tu oficio principal de la lista.") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.primary_trade_prompt")) if @body.blank?
 
     categories = data["categories"]
 
@@ -226,7 +225,7 @@ class OnboardingService
       selected_index = find_selected_category_index(@body, categories)
 
       if selected_index.nil?
-        send_message("No entendí cuál seleccionaste. Por favor elige de la lista.")
+        send_message(I18n.t("elisa.provider.onboarding.primary_trade_invalid"))
         return
       end
 
@@ -236,22 +235,22 @@ class OnboardingService
 
     advance_to(
       "collecting_city",
-      message: "¿En qué ciudad trabajas?"
+      message: I18n.t("elisa.provider.onboarding.city_prompt")
     )
   end
 
   def collect_city
-    return send_message("¿En qué ciudad trabajas?") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.city_prompt")) if @body.blank?
 
     data["city"] = @body
     advance_to(
       "collecting_area",
-      message: "¿En qué zonas o colonias de #{@body} das servicio? Puedes mencionar varias."
+      message: I18n.t("elisa.provider.onboarding.area_prompt", city: @body)
     )
   end
 
   def collect_area
-    return send_message("¿En qué zonas o colonias das servicio?") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.area_required")) if @body.blank?
 
     data["service_area"] = @body
 
@@ -262,7 +261,7 @@ class OnboardingService
   end
 
   def collect_price
-    return send_message("Por favor selecciona un rango de precio de la lista.") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.price_prompt")) if @body.blank?
 
     # Extract price range from List Message selection
     # The response will be the ID from the list (e.g., "100-200", "200-400", "400-600", "600+")
@@ -270,7 +269,7 @@ class OnboardingService
     price_range = extract_price_range(@body)
 
     if price_range.nil?
-      send_message("No entendí cuál seleccionaste. Por favor elige un rango de la lista.")
+      send_message(I18n.t("elisa.provider.onboarding.price_invalid"))
       return
     end
 
@@ -283,7 +282,7 @@ class OnboardingService
   end
 
   def collect_experience
-    return send_message("Por favor selecciona un rango de experiencia de la lista.") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.experience_prompt")) if @body.blank?
 
     # Extract experience range from List Message selection
     # The response will be the ID from the list (e.g., "1-3", "4-6", "7-10", "10+")
@@ -291,29 +290,29 @@ class OnboardingService
     numeric_experience = extract_experience_range(@body)
 
     if numeric_experience.nil?
-      send_message("No entendí cuál seleccionaste. Por favor elige un rango de la lista.")
+      send_message(I18n.t("elisa.provider.onboarding.experience_invalid"))
       return
     end
 
     data["years_experience"] = numeric_experience
     advance_to(
       "collecting_specialties",
-      message: "¿Hay algo en lo que te especialices? Por ejemplo: urgencias, instalaciones nuevas, reparaciones..."
+      message: I18n.t("elisa.provider.onboarding.specialties_prompt")
     )
   end
 
   def collect_specialties
-    return send_message("¿En qué te especializas?") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.specialties_required")) if @body.blank?
 
     data["specialties"] = @body
     advance_to(
       "collecting_specialized_work",
-      message: "¿Haces algún trabajo especializado? Por ejemplo: calentadores solares, sistemas de alta presión, paneles eléctricos..."
+      message: I18n.t("elisa.provider.onboarding.specialized_work_prompt")
     )
   end
 
   def collect_specialized_work
-    return send_message("¿Haces algún trabajo especializado?") if @body.blank?
+    return send_message(I18n.t("elisa.provider.onboarding.specialized_work_required")) if @body.blank?
 
     data["specialized_work"] = @body
     data["bio_answers"] = []
@@ -325,10 +324,10 @@ class OnboardingService
   # --- Bio generation flow ---
 
   BIO_QUESTIONS = [
-    "¿Qué es lo que más te gusta de tu trabajo?",
-    "¿Cuál ha sido el trabajo más interesante que has hecho?",
-    "¿Qué te diferencia de otros técnicos en tu zona?",
-    "¿Hay algo que quieras que tus clientes sepan de ti?"
+    "elisa.provider.bio.question_1",
+    "elisa.provider.bio.question_2",
+    "elisa.provider.bio.question_3",
+    "elisa.provider.bio.question_4"
   ].freeze
 
   def ask_next_bio_question
@@ -339,11 +338,11 @@ class OnboardingService
       return
     end
 
-    advance_to("bio_questions", message: BIO_QUESTIONS[index])
+    advance_to("bio_questions", message: I18n.t(BIO_QUESTIONS[index]))
   end
 
   def collect_bio_answers
-    return send_message(BIO_QUESTIONS[data["bio_question_index"].to_i]) if @body.blank?
+    return send_message(I18n.t(BIO_QUESTIONS[data["bio_question_index"].to_i])) if @body.blank?
 
     data["bio_answers"] << @body
     data["bio_question_index"] = data["bio_question_index"].to_i + 1
@@ -365,7 +364,7 @@ class OnboardingService
     # Handle nil response or missing message
     if response.nil? || response["message"].blank?
       Rails.logger.error("[OnboardingService] Failed to generate bio - nil or empty response")
-      send_message("Lo siento, tuve un problema generando tu descripción. Voy a intentar de nuevo...")
+      send_message(I18n.t("elisa.provider.bio.generation_error"))
       # Retry once
       response = ClaudeService.call(
         model: :haiku,  # Try with haiku as fallback
@@ -376,7 +375,7 @@ class OnboardingService
 
       if response.nil? || response["message"].blank?
         Rails.logger.error("[OnboardingService] Failed to generate bio after retry")
-        send_message("Lo siento, tengo problemas técnicos. Por favor intenta de nuevo más tarde o escribe tu propia descripción.")
+        send_message(I18n.t("elisa.provider.bio.generation_error_final"))
         return
       end
     end
@@ -386,7 +385,7 @@ class OnboardingService
     save_state
 
     send_message(generated_bio)
-    send_message("¿Te gusta esta descripción? Responde *sí* para aprobarla o dime qué le cambiarías.")
+    send_message(I18n.t("elisa.provider.bio.approval_prompt"))
   end
 
   def handle_bio_review
@@ -396,23 +395,23 @@ class OnboardingService
       data.delete("awaiting_dictated_bio")
       advance_to(
         "collecting_profile_photo",
-        message: "Listo, usaré esa descripción 👍 Ahora, ¿me puedes mandar una foto tuya para tu perfil? Es opcional. Si no quieres, escribe *no*."
+        message: I18n.t("elisa.provider.photos.profile_prompt_after_dictation")
       )
     elsif affirmative_response?(@body)
       data["bio"] = data["generated_bio"]
       advance_to(
         "collecting_profile_photo",
-        message: "¡Perfecto! Ahora, ¿me puedes mandar una foto tuya para tu perfil? Es opcional, pero ayuda mucho a generar confianza. Si no quieres, escribe *no*."
+        message: I18n.t("elisa.provider.photos.profile_prompt")
       )
     elsif @body&.downcase&.include?("no me diste") || @body&.downcase&.include?("no recibí")
       # Provider says they didn't receive the bio - resend it
       if data["generated_bio"].present?
-        send_message("Disculpa, aquí está tu descripción de nuevo:")
+        send_message(I18n.t("elisa.provider.bio.resend"))
         send_message(data["generated_bio"])
-        send_message("¿Te gusta esta descripción? Responde *sí* para aprobarla o dime qué le cambiarías.")
+        send_message(I18n.t("elisa.provider.bio.resend_prompt"))
       else
         # Bio was never generated - regenerate it
-        send_message("Tienes razón, déjame generarla de nuevo...")
+        send_message(I18n.t("elisa.provider.bio.regenerating"))
         generate_bio
       end
     else
@@ -424,7 +423,7 @@ class OnboardingService
         data["awaiting_dictated_bio"] = true
         advance_to(
           "bio_review",
-          message: "Entiendo que no quedó como quieres. Mejor dime con tus propias palabras cómo te gustaría que dijera tu descripción y la uso tal cual."
+          message: I18n.t("elisa.provider.bio.retry_dictation")
         )
       else
         regenerate_bio_with_feedback
@@ -443,7 +442,7 @@ class OnboardingService
     # Handle nil response or missing message
     if response.nil? || response["message"].blank?
       Rails.logger.error("[OnboardingService] Failed to regenerate bio - nil or empty response")
-      send_message("Lo siento, tuve un problema generando la nueva descripción. ¿Puedes repetir qué cambios quieres?")
+      send_message(I18n.t("elisa.provider.bio.regeneration_error"))
       return
     end
 
@@ -452,7 +451,7 @@ class OnboardingService
     save_state
 
     send_message(generated_bio)
-    send_message("¿Ahora sí te gusta? Responde *sí* para aprobarla o dime qué le cambiarías.")
+    send_message(I18n.t("elisa.provider.bio.approval_prompt"))
   end
 
   # --- Photo collection ---
@@ -487,6 +486,38 @@ class OnboardingService
     end
   end
 
+  # --- Photo collection ---
+
+  def handle_profile_photo
+    if negative_response?(@body)
+      advance_to(
+        "collecting_work_photos",
+        message: I18n.t("elisa.provider.photos.work_prompt")
+      )
+    else
+      # For now, acknowledge photo receipt (media handling is via media_url in webhook)
+      data["has_profile_photo"] = true
+      save_state
+      advance_to(
+        "collecting_work_photos",
+        message: I18n.t("elisa.provider.photos.profile_ack")
+      )
+    end
+  end
+
+  def handle_work_photos
+    if negative_response?(@body) || done_response?(@body)
+      advance_to(
+        "explaining_facebook",
+        message: I18n.t("elisa.provider.facebook.explanation")
+      )
+    else
+      data["work_photos_count"] = (data["work_photos_count"].to_i) + 1
+      save_state
+      send_message(I18n.t("elisa.provider.photos.work_ack"))
+    end
+  end
+
   # --- Facebook and email ---
 
   def handle_facebook_url
@@ -498,7 +529,7 @@ class OnboardingService
 
     advance_to(
       "collecting_email",
-      message: "¿Me das tu correo electrónico? Es opcional, pero lo uso para enviarte reportes y notificaciones importantes. Si no quieres, escribe *no*."
+      message: I18n.t("elisa.provider.email.prompt")
     )
   end
 
@@ -523,7 +554,7 @@ class OnboardingService
 
     if provider.slug.blank?
       Rails.logger.error("[OnboardingService] Failed to build slug for provider #{provider.name}")
-      send_message("Lo siento, hubo un problema creando tu perfil. Por favor contacta a soporte.")
+      send_message(I18n.t("elisa.provider.completion.slug_error"))
       return
     end
 
@@ -571,23 +602,25 @@ class OnboardingService
     profile_url = "trato.mx/p/#{provider.slug}"
     assistant_link = provider.assistant_whatsapp_link
 
-    message = "¡Listo, #{provider.name}! Tu perfil ya está activo 🎉\n\n" \
-              "Tu página: #{profile_url}\n" \
-              "Link de tu asistente Elisa: #{assistant_link}\n\n" \
-              "Comparte ese link con tus clientes para que me escriban a mí cuando no puedas contestar."
+    message = I18n.t(
+      "elisa.provider.completion.message",
+      name: provider.name,
+      profile_url: profile_url,
+      assistant_link: assistant_link
+    )
 
     send_message(message)
   end
 
   def send_capabilities_explanation(provider)
     messages = [
-      "Soy Elisa y te cuento lo que puedo hacer por ti 👇",
-      "📅 *Agenda:* Dime cuándo empiezas a trabajar y yo organizo tus citas del día. Tus clientes pueden agendar conmigo directo.",
-      "💰 *Cobros y gastos:* Cuando termines un trabajo, cuéntame y yo registro el cobro. También puedo llevar tus gastos de material.",
-      "📋 *Pendientes:* Si me dices \"recuérdame comprar cable\" o \"tengo que llamar al señor Pérez\", yo te lo recuerdo al día siguiente.",
-      "👥 *Atención a clientes:* Cuando no puedas contestar, yo atiendo a tus clientes, les muestro fotos de tu trabajo y agendo citas.",
-      "📊 *Finanzas:* Pregúntame \"¿cuánto llevo hoy?\" o \"¿cuánto me deben?\" y te doy el resumen al instante.",
-      "📱 *Redes sociales:* Mándame una foto de tu trabajo y yo la publico en tu Facebook con un texto profesional."
+      I18n.t("elisa.provider.capabilities.intro"),
+      I18n.t("elisa.provider.capabilities.agenda"),
+      I18n.t("elisa.provider.capabilities.finances"),
+      I18n.t("elisa.provider.capabilities.reminders"),
+      I18n.t("elisa.provider.capabilities.client_attention"),
+      I18n.t("elisa.provider.capabilities.financial_queries"),
+      I18n.t("elisa.provider.capabilities.social_media")
     ]
 
     WhatsAppService.send_multipart(
@@ -598,11 +631,7 @@ class OnboardingService
   end
 
   def send_auto_reply_suggestion(provider)
-    auto_reply = "Por cierto, te recomiendo poner este mensaje como respuesta automática en tu WhatsApp Business:\n\n" \
-                 "\"Hola 👋 Ahorita estoy trabajando.\n" \
-                 "Mi asistente Elisa puede ayudarte:\n" \
-                 "#{provider.assistant_whatsapp_link}\""
-
+    auto_reply = I18n.t("elisa.provider.auto_reply.suggestion", assistant_link: provider.assistant_whatsapp_link)
     send_message(auto_reply)
   end
 
@@ -818,6 +847,11 @@ class OnboardingService
   end
 
   def bio_user_message
+    # Translate bio questions for the prompt
+    translated_questions = BIO_QUESTIONS.map.with_index do |key, i|
+      "- #{I18n.t(key)}: #{data['bio_answers'][i]}"
+    end.join("\n")
+
     <<~MSG
       Datos del técnico:
       - Nombre: #{data['name']}
@@ -830,7 +864,7 @@ class OnboardingService
       - Trabajo especializado: #{data['specialized_work']}
 
       Respuestas personales:
-      #{(data['bio_answers'] || []).each_with_index.map { |a, i| "- #{BIO_QUESTIONS[i]}: #{a}" }.join("\n")}
+      #{translated_questions}
     MSG
   end
 end

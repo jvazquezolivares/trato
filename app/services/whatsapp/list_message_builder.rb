@@ -85,24 +85,24 @@ module WhatsApp
     #
     # @return [Hash] List Message payload for Meta Cloud API
     def self.build_price_range_list
-      price_ranges = [
-        { id: "100-200", title: "$100–200 MXN" },
-        { id: "200-400", title: "$200–400 MXN" },
-        { id: "400-600", title: "$400–600 MXN" },
-        { id: "600+", title: "Más de $600 MXN" }
-      ]
+      options = I18n.t("elisa.provider.list_messages.price_range.options")
+      price_range_ids = ["100-200", "200-400", "400-600", "600+"]
+
+      price_ranges = options.map.with_index do |title, index|
+        { id: price_range_ids[index], title: title }
+      end
 
       {
         type: "list",
         header: {
           type: "text",
-          text: "Rango de precio"
+          text: I18n.t("elisa.provider.list_messages.price_range.title")
         },
         body: {
-          text: "¿Cuánto cobras por una visita de diagnóstico?"
+          text: I18n.t("elisa.provider.list_messages.price_range.body")
         },
         action: {
-          button: "Ver opciones",
+          button: I18n.t("elisa.provider.list_messages.price_range.button"),
           sections: [
             {
               title: "Precio de diagnóstico",
@@ -118,24 +118,24 @@ module WhatsApp
     #
     # @return [Hash] List Message payload for Meta Cloud API
     def self.build_experience_range_list
-      experience_ranges = [
-        { id: "1-3", title: "1–3 años" },
-        { id: "4-6", title: "4–6 años" },
-        { id: "7-10", title: "7–10 años" },
-        { id: "10+", title: "Más de 10 años" }
-      ]
+      options = I18n.t("elisa.provider.list_messages.experience.options")
+      experience_range_ids = ["1-3", "4-6", "7-10", "10+"]
+
+      experience_ranges = options.map.with_index do |title, index|
+        { id: experience_range_ids[index], title: title }
+      end
 
       {
         type: "list",
         header: {
           type: "text",
-          text: "Años de experiencia"
+          text: I18n.t("elisa.provider.list_messages.experience.title")
         },
         body: {
-          text: "¿Cuántos años llevas trabajando en tu oficio?"
+          text: I18n.t("elisa.provider.list_messages.experience.body")
         },
         action: {
-          button: "Ver opciones",
+          button: I18n.t("elisa.provider.list_messages.experience.button"),
           sections: [
             {
               title: "Experiencia",
@@ -151,32 +151,28 @@ module WhatsApp
     #
     # @return [Hash] List Message payload for Meta Cloud API
     def self.build_decline_reasons_list
-      decline_reasons = [
-        { id: "busy", title: "Estoy muy ocupado" },
-        { id: "dont_understand", title: "No entiendo qué es" },
-        { id: "not_worth_it", title: "No sé si vale pena" },
-        { id: "uncomfortable_whatsapp", title: "No me gusta WhatsApp" },
-        { id: "enough_clients", title: "Tengo suficientes" },
-        { id: "other", title: "Otro motivo" }
-      ]
+      options = I18n.t("elisa.provider.list_messages.decline_reasons.options")
+      decline_reason_ids = ["busy", "dont_understand", "not_worth_it", "uncomfortable_whatsapp", "enough_clients", "other"]
+
+      decline_reasons = options.map.with_index do |title, index|
+        { id: decline_reason_ids[index], title: truncate_label(title) }
+      end
 
       {
         type: "list",
         header: {
           type: "text",
-          text: "¿Por qué no por ahora?"
+          text: I18n.t("elisa.provider.list_messages.decline_reasons.title")
         },
         body: {
-          text: "Me ayudaría saber qué te detiene"
+          text: I18n.t("elisa.provider.list_messages.decline_reasons.body")
         },
         action: {
-          button: "Ver opciones",
+          button: I18n.t("elisa.provider.list_messages.decline_reasons.button"),
           sections: [
             {
               title: "Razón",
-              rows: decline_reasons.map do |reason|
-                { id: reason[:id], title: truncate_label(reason[:title]) }
-              end
+              rows: decline_reasons
             }
           ]
         }
@@ -188,30 +184,28 @@ module WhatsApp
     #
     # @return [Hash] List Message payload for Meta Cloud API
     def self.build_financial_options_list
-      financial_options = [
-        { id: "income", title: "Ver ingresos" },
-        { id: "expenses", title: "Ver gastos" },
-        { id: "pending", title: "Ver cobros" },
-        { id: "no_thanks", title: "No, gracias" }
-      ]
+      options = I18n.t("elisa.provider.list_messages.financial_summary.options")
+      financial_option_ids = ["income", "expenses", "pending", "no_thanks"]
+
+      financial_options = options.map.with_index do |title, index|
+        { id: financial_option_ids[index], title: truncate_label(title) }
+      end
 
       {
         type: "list",
         header: {
           type: "text",
-          text: "¿Qué quieres ver?"
+          text: I18n.t("elisa.provider.list_messages.financial_summary.title")
         },
         body: {
-          text: "Puedo mostrarte un resumen de tus finanzas"
+          text: I18n.t("elisa.provider.list_messages.financial_summary.body")
         },
         action: {
-          button: "Ver opciones",
+          button: I18n.t("elisa.provider.list_messages.financial_summary.button"),
           sections: [
             {
               title: "Opciones financieras",
-              rows: financial_options.map do |option|
-                { id: option[:id], title: truncate_label(option[:title]) }
-              end
+              rows: financial_options
             }
           ]
         }
@@ -223,25 +217,24 @@ module WhatsApp
     #
     # @return [Hash] List Message payload for Meta Cloud API
     def self.build_rating_list
-      ratings = [
-        { id: "5", title: "⭐⭐⭐⭐⭐ Excelente" },
-        { id: "4", title: "⭐⭐⭐⭐ Muy bueno" },
-        { id: "3", title: "⭐⭐⭐ Bueno" },
-        { id: "2", title: "⭐⭐ Regular" },
-        { id: "1", title: "⭐ Malo" }
-      ]
+      options = I18n.t("elisa.client.list_messages.ratings.options")
+      rating_ids = ["5", "4", "3", "2", "1"]
+
+      ratings = options.map.with_index do |title, index|
+        { id: rating_ids[index], title: title }
+      end
 
       {
         type: "list",
         header: {
           type: "text",
-          text: "¿Cómo calificarías el trabajo?"
+          text: I18n.t("elisa.client.list_messages.ratings.title")
         },
         body: {
-          text: "Tu opinión ayuda a otros clientes"
+          text: I18n.t("elisa.client.list_messages.ratings.body")
         },
         action: {
-          button: "Ver opciones",
+          button: I18n.t("elisa.client.list_messages.ratings.button"),
           sections: [
             {
               title: "Calificación",

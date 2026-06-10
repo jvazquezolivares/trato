@@ -143,7 +143,7 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "5"
         )
 
-        expect(result["message"]).to match(/más te gustó/)
+        expect(result["message"]).to include(I18n.t("elisa.client.review.comment_request", name: provider.name))
       end
 
       it "stores rating in conversation context" do
@@ -187,7 +187,9 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "5"
         )
 
-        expect(result["message"]).to match(/más te gustó/)
+        expect(result["message"]).to eq(
+          "#{I18n.t('elisa.client.review.rating_ack', rating: 5)} #{I18n.t('elisa.client.review.comment_request', name: provider.name)}"
+        )
         expect(conversation).to have_received(:update!).with(
           context: hash_including(
             "review_collection" => hash_including("rating" => 5)
@@ -201,7 +203,9 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "4"
         )
 
-        expect(result["message"]).to match(/más te gustó/)
+        expect(result["message"]).to eq(
+          "#{I18n.t('elisa.client.review.rating_ack', rating: 4)} #{I18n.t('elisa.client.review.comment_request', name: provider.name)}"
+        )
         expect(conversation).to have_received(:update!).with(
           context: hash_including(
             "review_collection" => hash_including("rating" => 4)
@@ -215,7 +219,9 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "3"
         )
 
-        expect(result["message"]).to match(/más te gustó/)
+        expect(result["message"]).to eq(
+          "#{I18n.t('elisa.client.review.rating_ack', rating: 3)} #{I18n.t('elisa.client.review.comment_request', name: provider.name)}"
+        )
         expect(conversation).to have_received(:update!).with(
           context: hash_including(
             "review_collection" => hash_including("rating" => 3)
@@ -229,7 +235,9 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "2"
         )
 
-        expect(result["message"]).to match(/más te gustó/)
+        expect(result["message"]).to eq(
+          "#{I18n.t('elisa.client.review.rating_ack', rating: 2)} #{I18n.t('elisa.client.review.comment_request', name: provider.name)}"
+        )
         expect(conversation).to have_received(:update!).with(
           context: hash_including(
             "review_collection" => hash_including("rating" => 2)
@@ -243,7 +251,9 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "1"
         )
 
-        expect(result["message"]).to match(/más te gustó/)
+        expect(result["message"]).to eq(
+          "#{I18n.t('elisa.client.review.rating_ack', rating: 1)} #{I18n.t('elisa.client.review.comment_request', name: provider.name)}"
+        )
         expect(conversation).to have_received(:update!).with(
           context: hash_including(
             "review_collection" => hash_including("rating" => 1)
@@ -414,7 +424,7 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "0"
         )
 
-        expect(result["message"]).to match(/número del 1 al 5/)
+        expect(result["message"]).to eq(I18n.t("elisa.client.review.invalid_rating_error"))
         expect(result["should_save_message"]).to be(false)
       end
 
@@ -424,7 +434,7 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "6"
         )
 
-        expect(result["message"]).to match(/número del 1 al 5/)
+        expect(result["message"]).to eq(I18n.t("elisa.client.review.invalid_rating_error"))
         expect(result["should_save_message"]).to be(false)
       end
 
@@ -434,7 +444,7 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "-1"
         )
 
-        expect(result["message"]).to match(/número del 1 al 5/)
+        expect(result["message"]).to eq(I18n.t("elisa.client.review.invalid_rating_error"))
         expect(result["should_save_message"]).to be(false)
       end
 
@@ -444,7 +454,7 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "excelente"
         )
 
-        expect(result["message"]).to match(/número del 1 al 5/)
+        expect(result["message"]).to eq(I18n.t("elisa.client.review.invalid_rating_error"))
         expect(result["should_save_message"]).to be(false)
       end
 
@@ -454,7 +464,7 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: ""
         )
 
-        expect(result["message"]).to match(/número del 1 al 5/)
+        expect(result["message"]).to eq(I18n.t("elisa.client.review.invalid_rating_error"))
         expect(result["should_save_message"]).to be(false)
       end
     end
@@ -485,7 +495,7 @@ RSpec.describe Assistants::ReviewCollectionService do
             conversation: fresh_conversation, body: rating.to_s
           )
 
-          expect(result["message"]).to match(/Gracias por tu calificación/)
+          expect(result["message"]).to include(I18n.t("elisa.client.review.rating_ack", rating: rating))
           expect(fresh_conversation).to have_received(:update!).with(
             context: hash_including(
               "review_collection" => hash_including("rating" => rating)
@@ -543,7 +553,9 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "5"
         )
 
-        expect(result["message"]).to match(/Gracias por tu calificación de 5/)
+        expect(result["message"]).to eq(
+          "#{I18n.t('elisa.client.review.rating_ack', rating: 5)} #{I18n.t('elisa.client.review.comment_request', name: provider.name)}"
+        )
         expect(conversation).to have_received(:update!).with(
           context: hash_including(
             "review_collection" => hash_including(
@@ -562,7 +574,7 @@ RSpec.describe Assistants::ReviewCollectionService do
         )
 
         # Should get immediate response asking for comment
-        expect(result["message"]).to match(/Gracias por tu calificación/)
+        expect(result["message"]).to include(I18n.t("elisa.client.review.rating_ack", rating: 4))
         expect(result["should_save_message"]).to be(false)
       end
 
@@ -652,7 +664,7 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation, body: "5"
         )
 
-        expect(result1["message"]).to match(/Gracias por tu calificación/)
+        expect(result1["message"]).to include(I18n.t("elisa.client.review.rating_ack", rating: 5))
         expect(conversation).to have_received(:update!).with(
           context: hash_including(
             "review_collection" => hash_including(
@@ -686,7 +698,7 @@ RSpec.describe Assistants::ReviewCollectionService do
           conversation: conversation_with_rating, body: "Excelente trabajo"
         )
 
-        expect(result2["message"]).to match(/Tu reseña quedó registrada/)
+        expect(result2["message"]).to eq(I18n.t("elisa.client.review.completion"))
         expect(Review).to have_received(:create!).with(
           hash_including(rating: 5, comment: "Excelente trabajo")
         )
@@ -711,7 +723,7 @@ RSpec.describe Assistants::ReviewCollectionService do
             conversation: fresh_conversation, body: rating.to_s
           )
 
-          expect(result["message"]).to match(/Gracias por tu calificación de #{rating}/)
+          expect(result["message"]).to include(I18n.t("elisa.client.review.rating_ack", rating: rating))
         end
       end
     end

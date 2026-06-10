@@ -106,7 +106,11 @@ module Assistants
       else
         # For non-danger escalations, send general alert to provider only
         provider_message = build_escalation_message(reason, detail)
-        WhatsAppService.send_message(to: @provider.phone, message: provider_message)
+        WhatsAppService.send_message(
+          to: @provider.phone,
+          message: provider_message,
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+        )
       end
     end
 
@@ -146,11 +150,18 @@ module Assistants
       client = @conversation.client
       client_name = client.name || "Cliente"
 
-      message = "🚨 #{client_name}, esto suena urgente. " \
-                "Aléjate del panel y llama a #{@provider.name} AHORA: " \
-                "📞 #{@provider.phone}. Si hay riesgo de incendio: llama al 911."
+      message = I18n.t(
+        'elisa.client.emergency.client_alert',
+        name: client_name,
+        provider_name: @provider.name,
+        phone: @provider.phone
+      )
 
-      WhatsAppService.send_message(to: @from, message: message)
+      WhatsAppService.send_message(
+        to: @from,
+        message: message,
+        phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
+      )
 
       Rails.logger.info(
         "[EscalationDetector] Sent emergency alert to client #{@from} " \
@@ -165,10 +176,18 @@ module Assistants
       # Extract the detected keyword from the body
       detected_keyword = extract_danger_keyword(@body.downcase)
 
-      message = "🚨 URGENTE: Tu cliente #{client_name} reporta #{detected_keyword}. " \
-                "Su número: 📞 #{@from}. Contáctala de inmediato."
+      message = I18n.t(
+        'elisa.client.emergency.provider_alert',
+        name: client_name,
+        keyword: detected_keyword,
+        phone: @from
+      )
 
-      WhatsAppService.send_message(to: @provider.phone, message: message)
+      WhatsAppService.send_message(
+        to: @provider.phone,
+        message: message,
+        phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+      )
 
       Rails.logger.info(
         "[EscalationDetector] Sent emergency alert to provider #{@provider.phone} " \

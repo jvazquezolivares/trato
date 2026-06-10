@@ -69,12 +69,20 @@ class MorningSummaryJob < ApplicationJob
   def build_summary_text(pending_tasks)
     if pending_tasks.any?
       task_list = pending_tasks.map { |task| "• #{task.description}" }.join("\n")
+      tasks_word = pending_tasks.size == 1 ?
+        I18n.t("elisa.provider.morning_summary.singular_task") :
+        I18n.t("elisa.provider.morning_summary.plural_tasks")
 
-      "Tienes #{pending_tasks.size} #{pending_tasks.size == 1 ? 'pendiente' : 'pendientes'} de ayer:\n" \
-        "#{task_list}\n" \
-        "Indícame cuando termines para tacharlos. ¿Tienes más pendientes para hoy?"
+      header = I18n.t(
+        "elisa.provider.morning_summary.with_tasks_header",
+        count: pending_tasks.size,
+        tasks_word: tasks_word
+      )
+      footer = I18n.t("elisa.provider.morning_summary.with_tasks_footer")
+
+      "#{header}\n#{task_list}\n#{footer}"
     else
-      "¿Tienes pendientes para hoy? Menciónamelos para registrarlos."
+      I18n.t("elisa.provider.morning_summary.no_tasks")
     end
   end
 end

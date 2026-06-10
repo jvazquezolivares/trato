@@ -11,8 +11,6 @@
 # Pre-provider state lives in Redis (key: "onboarding_state:{phone}", 24h TTL)
 # because the Conversation model requires a provider_id (NOT NULL).
 class ProviderConversationHandler
-  WELCOME_MESSAGE = "¡Hola! 👋 Soy Elisa de Trato. Te voy a ayudar a crear tu perfil de técnico. " \
-                    "¿Listo para empezar?"
   ONBOARDING_TTL = 86_400 # 24 hours in seconds
 
   def self.call(from:, body:, media_url: nil)
@@ -69,7 +67,7 @@ class ProviderConversationHandler
   def self.send_welcome_and_store_state(phone)
     WhatsAppService.send_message(
       to: phone,
-      message: WELCOME_MESSAGE,
+      message: I18n.t('elisa.provider.onboarding.welcome'),
       phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
     )
     REDIS.setex("onboarding_state:#{phone}", ONBOARDING_TTL, { stage: "onboarding_welcome" }.to_json)

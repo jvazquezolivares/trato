@@ -1,0 +1,472 @@
+# frozen_string_literal: true
+
+# ==============================================================================
+# ELISA MESSAGE COPIES — Spanish (es)
+# ==============================================================================
+#
+# This file centralizes all user-facing message copies that Elisa (Trato's AI 
+# assistant) sends via WhatsApp. Messages are organized by conversation flow:
+#
+# Structure:
+#   es.elisa.provider.*  — Provider-facing messages (P1-P20 flows)
+#   es.elisa.client.*    — Client-facing messages (C1-C7 flows)
+#
+# Naming Conventions:
+#   - Use dot-notation: elisa.[provider|client].[flow_category].[message_name]
+#   - Key names are in English (e.g., "welcome", "greeting", "emergency_alert")
+#   - Message content is in Spanish
+#
+# Interpolation:
+#   - Use Rails i18n syntax for dynamic values: %{variable_name}
+#   - Common variables: name, date, time, phone, state, city, provider_name
+#   - Required variables are documented in comments for each message
+#
+# Future Internationalization:
+#   - This file contains Spanish (es) copies only
+#   - To add English support, create elisa_en.yml with same key structure
+#   - To add Portuguese, create elisa_pt.yml with same key structure
+#   - Key names remain in English across all locales
+#
+# Source of Truth:
+#   - All message copies match KIRO_PROMPT_FLOWS_v5.md specification
+#   - Flow IDs (P1A, C7A, etc.) are documented in comments
+#   - Do NOT include AI prompt builder content (system instructions)
+#   - Only user-facing WhatsApp message strings belong here
+#
+# Usage in Code:
+#   I18n.t('elisa.provider.onboarding.welcome')
+#   I18n.t('elisa.provider.onboarding.greeting', name: provider.name)
+#
+# ==============================================================================
+
+es:
+  elisa:
+    # ==========================================================================
+    # PROVIDER MESSAGES (P1-P20 flows)
+    # ==========================================================================
+    provider:
+      # ------------------------------------------------------------------------
+      # P1-P8: Initial onboarding and field collection messages
+      # ------------------------------------------------------------------------
+      onboarding:
+        # P1A: Initial welcome message
+        # Used in: ProviderConversationHandler::WELCOME_MESSAGE
+        # Variables: none
+        welcome: "¡Hola! 👋 Soy Elisa de Trato. Te voy a ayudar a crear tu perfil de técnico. ¿Listo para empezar?"
+        
+        # P1B: Decline closing message (after provider selects decline reason)
+        # Variables: none
+        decline_closing: "¡Gracias por contarme! 😊 Cuando quieras crear tu cuenta, escríbeme aquí y con gusto te ayudo. ¡Que te vaya muy bien! — Elisa"
+        
+        # P2A: Name prompt
+        # Variables: none
+        name_prompt: "¡Qué bueno que quieres registrarte! 🎉 ¿Cómo te llamas?"
+        
+        # P2A: Name validation error
+        # Variables: none
+        name_required: "Necesito tu nombre para continuar. ¿Cómo te llamas?"
+        
+        # P2B: Greeting after name is provided
+        # Variables: name (string) — provider's first name
+        # Example: "Mucho gusto, Miguel 👋 ¿A qué te dedicas?..."
+        greeting: "Mucho gusto, %{name} 👋 ¿A qué te dedicas? Puedes mencionar varios oficios, por ejemplo: fontanero, electricista, albañil."
+        
+        # P3A: Categories validation error
+        # Variables: none
+        categories_required: "¿A qué te dedicas? Puedes mencionar varios oficios."
+        
+        # P3A: Primary trade list prompt (shown when provider has multiple categories)
+        # Variables: none
+        # Note: List message options are in list_messages.primary_trade section
+        primary_trade_prompt: "Por favor selecciona tu oficio principal de la lista."
+        
+        # P3A: Primary trade validation error
+        # Variables: none
+        primary_trade_invalid: "No entendí cuál seleccionaste. Por favor elige de la lista."
+        
+        # P4A: City prompt
+        # Variables: none
+        city_prompt: "¿En qué ciudad trabajas?"
+        
+        # P5A: Service area prompt
+        # Variables: city (string) — provider's city name
+        # Example: "¿En qué zonas o colonias de Veracruz das servicio?..."
+        area_prompt: "¿En qué zonas o colonias de %{city} das servicio? Puedes mencionar varias."
+        
+        # P5A: Service area validation error
+        # Variables: none
+        area_required: "¿En qué zonas o colonias das servicio?"
+        
+        # P4: Diagnosis visit price — List Message prompt
+        # Variables: none
+        # Note: List message options are in list_messages.price_range section
+        price_prompt: "Por favor selecciona un rango de precio de la lista."
+        
+        # P4: Price range validation error
+        # Variables: none
+        price_invalid: "No entendí cuál seleccionaste. Por favor elige un rango de la lista."
+        
+        # P5: Years of experience — List Message prompt
+        # Variables: none
+        # Note: List message options are in list_messages.experience section
+        experience_prompt: "Por favor selecciona un rango de experiencia de la lista."
+        
+        # P5: Experience range validation error
+        # Variables: none
+        experience_invalid: "No entendí cuál seleccionaste. Por favor elige un rango de la lista."
+        
+        # P6A: Specialties prompt
+        # Variables: none
+        specialties_prompt: "¿Hay algo en lo que te especialices? Por ejemplo: urgencias, instalaciones nuevas, reparaciones..."
+        
+        # P6A: Specialties validation error
+        # Variables: none
+        specialties_required: "¿En qué te especializas?"
+        
+        # P7A: Specialized work prompt
+        # Variables: none
+        specialized_work_prompt: "¿Haces algún trabajo especializado? Por ejemplo: calentadores solares, sistemas de alta presión, paneles eléctricos..."
+        
+        # P7A: Specialized work validation error
+        # Variables: none
+        specialized_work_required: "¿Haces algún trabajo especializado?"
+        
+        # P1B: Decline reason prompt
+        # Variables: none
+        decline_reason_prompt: "Por favor selecciona una razón de la lista."
+      
+      # ------------------------------------------------------------------------
+      # P9-P10: Bio generation and review
+      # ------------------------------------------------------------------------
+      bio:
+        # P9A: Bio questions (4 conversational questions)
+        # Variables: none
+        question_1: "¿Qué es lo que más te gusta de tu trabajo?"
+        question_2: "¿Cuál ha sido el trabajo más interesante que has hecho?"
+        question_3: "¿Qué te diferencia de otros técnicos en tu zona?"
+        question_4: "¿Hay algo que quieras que tus clientes sepan de ti?"
+        
+        # P10A: Bio approval prompt
+        # Variables: none
+        approval_prompt: "¿Te gusta esta descripción? Responde *sí* para aprobarla o dime qué le cambiarías."
+        
+        # P10B: Bio regeneration prompt (after 2 failed revisions)
+        # Variables: none
+        retry_dictation: "Entiendo que no quedó como quieres. Mejor dime con tus propias palabras cómo te gustaría que dijera tu descripción y la uso tal cual."
+        
+        # P10C: Bio resend (when provider says they didn't receive it)
+        # Variables: none
+        resend: "Disculpa, aquí está tu descripción de nuevo:"
+        
+        # P10D: Bio regeneration error
+        # Variables: none
+        regeneration_error: "Lo siento, tuve un problema generando la nueva descripción. ¿Puedes repetir qué cambios quieres?"
+        
+        # P10E: Bio generation failure
+        # Variables: none
+        generation_error: "Lo siento, tuve un problema generando tu descripción. Voy a intentar de nuevo..."
+        
+        # P10F: Bio generation failure after retry
+        # Variables: none
+        generation_error_final: "Lo siento, tengo problemas técnicos. Por favor intenta de nuevo más tarde o escribe tu propia descripción."
+        
+        # P10G: Bio resend prompt
+        # Variables: none
+        resend_prompt: "¿Te gusta esta descripción? Responde *sí* para aprobarla o dime qué le cambiarías."
+        
+        # P10H: Bio regeneration in progress
+        # Variables: none
+        regenerating: "Tienes razón, déjame generarla de nuevo..."
+      
+      # ------------------------------------------------------------------------
+      # P11-P12: Photos collection
+      # ------------------------------------------------------------------------
+      photos:
+        # P11A: Profile photo prompt (with bio approval)
+        # Variables: none
+        profile_prompt: "¡Perfecto! Ahora, ¿me puedes mandar una foto tuya para tu perfil? Es opcional, pero ayuda mucho a generar confianza. Si no quieres, escribe *no*."
+        
+        # P11B: Profile photo prompt (with bio dictation)
+        # Variables: none
+        profile_prompt_after_dictation: "Listo, usaré esa descripción 👍 Ahora, ¿me puedes mandar una foto tuya para tu perfil? Es opcional. Si no quieres, escribe *no*."
+        
+        # P11C: Profile photo acknowledgment
+        # Variables: none
+        profile_ack: "¡Buena foto! 📸 ¿Tienes fotos de tus trabajos? Mándame las que quieras. Cuando termines, escribe *listo*."
+        
+        # P12A: Work photos prompt (when profile photo is declined)
+        # Variables: none
+        work_prompt: "Sin problema. ¿Tienes fotos de tus trabajos que quieras compartir? Ayudan mucho a que los clientes vean tu trabajo. Si no tienes ahorita, escribe *no*."
+        
+        # P12B: Work photo acknowledgment
+        # Variables: none
+        work_ack: "¡Guardada! Mándame más fotos o escribe *listo* cuando termines."
+      
+      # ------------------------------------------------------------------------
+      # P13-P15: Facebook and email collection
+      # ------------------------------------------------------------------------
+      facebook:
+        # P13A: Facebook page explanation and prompt
+        # Variables: none
+        explanation: "Conectar tu página de Facebook tiene una ventaja: yo puedo publicar automáticamente tus fotos de trabajo y actualizaciones en tu página, sin que tú tengas que hacer nada 📱 ¿Tienes una página de Facebook de tu negocio? Si sí, mándame el link. Si no, escribe *no*."
+      
+      email:
+        # P14A: Email prompt
+        # Variables: none
+        prompt: "¿Me das tu correo electrónico? Es opcional, pero lo uso para enviarte reportes y notificaciones importantes. Si no quieres, escribe *no*."
+      
+      # ------------------------------------------------------------------------
+      # P16: Completion and profile URL
+      # ------------------------------------------------------------------------
+      completion:
+        # P16A: Completion message with profile URL and assistant link
+        # Variables: 
+        #   - name (string) — provider's first name
+        #   - profile_url (string) — full URL to provider's public profile page
+        #   - assistant_link (string) — WhatsApp link to Elisa assistant for this provider
+        # Example: "¡Listo, Miguel! Tu perfil ya está activo 🎉\n\nTu página: https://trato.com/miguel..."
+        message: "¡Listo, %{name}! Tu perfil ya está activo 🎉\n\nTu página: %{profile_url}\nLink de tu asistente Elisa: %{assistant_link}\n\nComparte ese link con tus clientes para que me escriban a mí cuando no puedas contestar."
+        
+        # Slug generation error
+        # Variables: none
+        slug_error: "Lo siento, hubo un problema creando tu perfil. Por favor contacta a soporte."
+      
+      # ------------------------------------------------------------------------
+      # P18: Capabilities explanation
+      # ------------------------------------------------------------------------
+      capabilities:
+        # P18A: Capabilities introduction
+        # Variables: none
+        intro: "Soy Elisa y te cuento lo que puedo hacer por ti 👇"
+        
+        # P18B: Agenda capability
+        # Variables: none
+        agenda: "📅 *Agenda:* Dime cuándo empiezas a trabajar y yo organizo tus citas del día. Tus clientes pueden agendar conmigo directo."
+        
+        # P18C: Finances capability
+        # Variables: none
+        finances: "💰 *Cobros y gastos:* Cuando termines un trabajo, cuéntame y yo registro el cobro. También puedo llevar tus gastos de material."
+        
+        # P18D: Reminders capability
+        # Variables: none
+        reminders: "📋 *Pendientes:* Si me dices \"recuérdame comprar cable\" o \"tengo que llamar al señor Pérez\", yo te lo recuerdo al día siguiente."
+        
+        # P18E: Client attention capability
+        # Variables: none
+        client_attention: "👥 *Atención a clientes:* Cuando no puedas contestar, yo atiendo a tus clientes, les muestro fotos de tu trabajo y agendo citas."
+        
+        # P18F: Financial queries capability
+        # Variables: none
+        financial_queries: "📊 *Finanzas:* Pregúntame \"¿cuánto llevo hoy?\" o \"¿cuánto me deben?\" y te doy el resumen al instante."
+        
+        # P18G: Social media capability
+        # Variables: none
+        social_media: "📱 *Redes sociales:* Mándame una foto de tu trabajo y yo la publico en tu Facebook con un texto profesional."
+      
+      # ------------------------------------------------------------------------
+      # P18H: Auto-reply suggestion
+      # ------------------------------------------------------------------------
+      auto_reply:
+        # P18H: Auto-reply suggestion message
+        # Variables: 
+        #   - assistant_link (string) — WhatsApp link to Elisa assistant for this provider
+        # Example: "Por cierto, te recomiendo poner este mensaje...\nhttps://wa.me/..."
+        suggestion: "Por cierto, te recomiendo poner este mensaje como respuesta automática en tu WhatsApp Business:\n\n\"Hola 👋 Ahorita estoy trabajando.\nMi asistente Elisa puede ayudarte:\n%{assistant_link}\""
+      
+      # ------------------------------------------------------------------------
+      # P19: Morning Summary (Daily Job)
+      # ------------------------------------------------------------------------
+      morning_summary:
+        # P19: Summary header when provider has pending tasks
+        # Variables:
+        #   - count (integer) — number of pending tasks
+        #   - tasks_word (string) — "pendiente" (singular) or "pendientes" (plural)
+        # Example: "Tienes 3 pendientes de ayer:\n"
+        with_tasks_header: "Tienes %{count} %{tasks_word} de ayer:"
+        
+        # P19: Summary footer after task list
+        # Variables: none
+        with_tasks_footer: "Indícame cuando termines para tacharlos. ¿Tienes más pendientes para hoy?"
+        
+        # P19: Summary when no pending tasks exist
+        # Variables: none
+        no_tasks: "¿Tienes pendientes para hoy? Menciónamelos para registrarlos."
+        
+        # P19: Word forms for task count
+        # Variables: none
+        singular_task: "pendiente"
+        plural_tasks: "pendientes"
+      
+      # ------------------------------------------------------------------------
+      # List Message structures for provider flows
+      # ------------------------------------------------------------------------
+      list_messages:
+        # P1B: Decline reasons when provider says "Mejor después"
+        # Required to save decline_reason to database
+        decline_reasons:
+          title: "¿Por qué no por ahora?"
+          body: "Me ayudaría saber qué te detiene"
+          button: "Ver opciones"
+          options:
+            - "Estoy muy ocupado"
+            - "No entiendo qué es"
+            - "No sé si vale pena"
+            - "No me gusta WhatsApp"
+            - "Tengo suficientes"
+            - "Otro motivo"
+        
+        # P4: Diagnosis visit price range selection
+        # Replaces quick-reply buttons (exceeds 3-button limit)
+        price_range:
+          title: "Rango de precio"
+          body: "¿Cuánto cobras por una visita de diagnóstico?"
+          button: "Ver opciones"
+          options:
+            - "$100–200 MXN"
+            - "$200–400 MXN"
+            - "$400–600 MXN"
+            - "Más de $600 MXN"
+        
+        # P5: Years of experience selection
+        # Replaces quick-reply buttons (exceeds 3-button limit)
+        experience:
+          title: "Años de experiencia"
+          body: "¿Cuántos años llevas trabajando en tu oficio?"
+          button: "Ver opciones"
+          options:
+            - "1–3 años"
+            - "4–6 años"
+            - "7–10 años"
+            - "Más de 10 años"
+        
+        # P17: Financial summary menu
+        # Replaces quick-reply buttons (4 options)
+        financial_summary:
+          title: "¿Qué quieres ver?"
+          body: "Puedo mostrarte un resumen de tus finanzas"
+          button: "Ver opciones"
+          options:
+            - "Ver ingresos"
+            - "Ver gastos"
+            - "Ver cobros"
+            - "No, gracias"
+        
+    # ==========================================================================
+    # CLIENT MESSAGES (C1-C7 flows)
+    # ==========================================================================
+    client:
+      # ------------------------------------------------------------------------
+      # C2A: Region Detection Flow (Camino B)
+      # ------------------------------------------------------------------------
+      region_detection:
+        # C2A: Initial greeting with detected region
+        # Variables: 
+        #   - state (string) — detected region/state name from client's phone number
+        # Example: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de Veracruz..."
+        greeting: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de %{state}. ¿Buscas un técnico por allá?"
+        
+        # C2A: Retry prompt when response is unclear
+        # Variables: 
+        #   - state (string) — detected region/state name
+        # Example: "No entendí tu respuesta. ¿Buscas un técnico en Veracruz?"
+        retry_prompt: "No entendí tu respuesta. ¿Buscas un técnico en %{state}?"
+        
+      # ------------------------------------------------------------------------
+      # C1A: Appointment Scheduling Flow
+      # ------------------------------------------------------------------------
+      appointment:
+        # C4B: Appointment notification header
+        # Variables: none
+        notification_header: "📋 *Nueva cita agendada*"
+        
+        # C4B: Appointment notification fields
+        # Variables: none (field labels only, values inserted separately)
+        notification_fields:
+          client: "👤 Cliente:"
+          phone: "📱 Teléfono:"
+          service: "🔧 Servicio:"
+          address: "📍 Dirección:"
+          date: "📅 Fecha:"
+          duration: "⏱ Duración estimada:"
+        
+        # C4B: Appointment notification footer (confirmation request)
+        # Variables: none
+        notification_footer: "¿Confirmas esta cita? Responde *sí* o propón otro horario."
+        
+        # C1A: Message when provider has no WorkDay configured for tomorrow
+        # Variables: 
+        #   - name (string) — provider's first name
+        # Example: "Miguel no tiene su agenda configurada para mañana..."
+        no_workday: "%{name} no tiene su agenda configurada para mañana. ¿Quieres que le avise para que te contacte directamente?"
+        
+        # C1A: Confirmation message after escalation request
+        # Variables: 
+        #   - name (string) — provider's first name
+        # Example: "Perfecto, le avisé a Miguel. Te contactará pronto..."
+        escalation_confirmed: "Perfecto, le avisé a %{name}. Te contactará pronto para coordinar la cita. 😊"
+        
+      # ------------------------------------------------------------------------
+      # C5A: Emergency Escalation Flow
+      # ------------------------------------------------------------------------
+      emergency:
+        # C5A: Alert sent to client when emergency detected
+        # Variables:
+        #   - name (string) — client's first name
+        #   - provider_name (string) — provider's first name
+        #   - phone (string) — provider's phone number (formatted)
+        # Example: "🚨 María, esto suena urgente. Aléjate del panel y llama a Miguel AHORA: 📞 +52 229 123 4567..."
+        # Grammar note: Uses informal "tú" form (aléjate, llama) appropriate for emergency situations
+        client_alert: "🚨 %{name}, esto suena urgente. Aléjate del panel y llama a %{provider_name} AHORA: 📞 %{phone}. Si hay riesgo de incendio: llama al 911."
+        
+        # C5A: Alert sent to provider when client reports emergency
+        # Variables:
+        #   - name (string) — client's first name
+        #   - keyword (string) — detected emergency keyword (e.g., "chispa", "humo", "fuego")
+        #   - phone (string) — client's phone number (formatted)
+        # Example: "🚨 URGENTE: Tu cliente María reporta humo. Su número: 📞 +52 229 987 6543..."
+        # Grammar note: Uses "Llámale" (gender-neutral) instead of "Contáctalo/a" for proper Spanish grammar
+        provider_alert: "🚨 URGENTE: Tu cliente %{name} reporta %{keyword}. Su número: 📞 %{phone}. Llámale de inmediato."
+        
+      # ------------------------------------------------------------------------
+      # C7A: Review Collection Flow
+      # ------------------------------------------------------------------------
+      review:
+        # C7A: Acknowledgment after rating is received
+        # Variables:
+        #   - rating (integer) — numeric star rating (1-5)
+        # Example: "¡Gracias por tu calificación de 5 ⭐!"
+        # Grammar note: "calificación" is feminine, uses "de" preposition before number
+        rating_ack: "¡Gracias por tu calificación de %{rating} ⭐!"
+        
+        # C7A: Request for written comment after rating
+        # Variables:
+        #   - name (string) — provider's first name
+        # Example: "Tu comentario le ayuda mucho a Miguel a conseguir más clientes..."
+        # Grammar note: Uses "le ayuda" (indirect object pronoun) for proper Spanish grammar
+        comment_request: "Tu comentario le ayuda mucho a %{name} a conseguir más clientes. ¿Qué fue lo que más te gustó del trabajo? 💬"
+        
+        # C7A: Completion message after comment is submitted
+        # Variables: none
+        completion: "¡Listo! Tu reseña quedó registrada. Muchas gracias por tomarte el tiempo 🙏"
+        
+        # C7A/C7C: Error message when invalid rating is provided
+        # Variables: none
+        invalid_rating_error: "Por favor responde con un número del 1 al 5 para tu calificación ⭐"
+        
+      # ------------------------------------------------------------------------
+      # Client List Messages
+      # ------------------------------------------------------------------------
+      list_messages:
+        # C7A: Star rating collection (5 options)
+        # Replaces 3-button quick-reply (incomplete rating scale)
+        # Store numeric value (1-5) in Review.rating
+        ratings:
+          title: "¿Cómo calificarías el trabajo?"
+          body: "Tu opinión ayuda a otros clientes"
+          button: "Ver opciones"
+          options:
+            - "⭐⭐⭐⭐⭐ Excelente"
+            - "⭐⭐⭐⭐ Muy bueno"
+            - "⭐⭐⭐ Bueno"
+            - "⭐⭐ Regular"
+            - "⭐ Malo"

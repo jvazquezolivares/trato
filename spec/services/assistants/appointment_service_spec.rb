@@ -35,6 +35,8 @@ RSpec.describe Assistants::AppointmentService do
     allow(work_days_relation).to receive(:find_by).and_return(nil)
     allow(Appointment).to receive(:create!).and_return(appointment)
     allow(WhatsAppService).to receive(:send_message).and_return(true)
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("WHATSAPP_PROVIDER_PHONE_NUMBER_ID").and_return("1152919394565310")
   end
 
   describe ".call" do
@@ -65,7 +67,8 @@ RSpec.describe Assistants::AppointmentService do
 
       expect(WhatsAppService).to have_received(:send_message).with(
         to: provider.phone,
-        message: a_string_matching(/Nueva cita agendada/)
+        message: a_string_matching(/Nueva cita agendada/),
+        phone_number_id: "1152919394565310"
       )
     end
 
@@ -77,7 +80,8 @@ RSpec.describe Assistants::AppointmentService do
 
       expect(WhatsAppService).to have_received(:send_message).with(
         to: provider.phone,
-        message: a_string_matching(/Mariana López/)
+        message: a_string_matching(/Mariana López/),
+        phone_number_id: "1152919394565310"
       )
     end
 
@@ -89,7 +93,8 @@ RSpec.describe Assistants::AppointmentService do
 
       expect(WhatsAppService).to have_received(:send_message).with(
         to: provider.phone,
-        message: a_string_matching(/5212219876543/)
+        message: a_string_matching(/5212219876543/),
+        phone_number_id: "1152919394565310"
       )
     end
 

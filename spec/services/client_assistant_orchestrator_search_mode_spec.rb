@@ -33,11 +33,12 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
 
         expect(WhatsAppService).to have_received(:send_message_with_buttons).with(
           to: from,
-          message: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de Veracruz. ¿Buscas un técnico en esta región?",
+          message: I18n.t('elisa.client.region_detection.greeting', state: "Veracruz"),
           buttons: [
             { id: "region_yes_Veracruz", title: "Sí, en Veracruz" },
             { id: "region_no", title: "No, en otro lugar" }
-          ]
+          ],
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
       end
 
@@ -64,11 +65,12 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
 
         expect(WhatsAppService).to have_received(:send_message_with_buttons).with(
           to: from,
-          message: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de Puebla. ¿Buscas un técnico en esta región?",
+          message: I18n.t('elisa.client.region_detection.greeting', state: "Puebla"),
           buttons: [
             { id: "region_yes_Puebla", title: "Sí, en Puebla" },
             { id: "region_no", title: "No, en otro lugar" }
-          ]
+          ],
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
       end
     end
@@ -85,11 +87,12 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
 
         expect(WhatsAppService).to have_received(:send_message_with_buttons).with(
           to: from,
-          message: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de Hidalgo. ¿Buscas un técnico en esta región?",
+          message: I18n.t('elisa.client.region_detection.greeting', state: "Hidalgo"),
           buttons: [
             { id: "region_yes_Hidalgo", title: "Sí, en Hidalgo" },
             { id: "region_no", title: "No, en otro lugar" }
-          ]
+          ],
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
       end
     end
@@ -106,11 +109,12 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
 
         expect(WhatsAppService).to have_received(:send_message_with_buttons).with(
           to: from,
-          message: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de Oaxaca. ¿Buscas un técnico en esta región?",
+          message: I18n.t('elisa.client.region_detection.greeting', state: "Oaxaca"),
           buttons: [
             { id: "region_yes_Oaxaca", title: "Sí, en Oaxaca" },
             { id: "region_no", title: "No, en otro lugar" }
-          ]
+          ],
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
       end
     end
@@ -202,11 +206,12 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
 
       expect(WhatsAppService).to have_received(:send_message_with_buttons).with(
         to: from,
-        message: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de Veracruz. ¿Buscas un técnico en esta región?",
+        message: I18n.t('elisa.client.region_detection.greeting', state: "Veracruz"),
         buttons: array_including(
           { id: "region_yes_Veracruz", title: "Sí, en Veracruz" },
           { id: "region_no", title: "No, en otro lugar" }
-        )
+        ),
+        phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
       )
     end
 
@@ -1065,11 +1070,12 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
         # Verify region confirmation message sent
         expect(WhatsAppService).to have_received(:send_message_with_buttons).with(
           to: from,
-          message: "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de Veracruz. ¿Buscas un técnico en esta región?",
+          message: I18n.t('elisa.client.region_detection.greeting', state: "Veracruz"),
           buttons: [
             { id: "region_yes_Veracruz", title: "Sí, en Veracruz" },
             { id: "region_no", title: "No, en otro lugar" }
-          ]
+          ],
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
 
         # Step 2: User confirms with "Sí"
@@ -1088,7 +1094,8 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
           payload: hash_including(
             type: "list",
             header: hash_including(text: "Zonas en Veracruz")
-          )
+          ),
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
 
         # Verify context stored with region_scope: "state"
@@ -1128,7 +1135,8 @@ RSpec.describe ClientAssistantOrchestrator, type: :service do
           payload: hash_including(
             type: "list",
             header: hash_including(text: "Todas las zonas")
-          )
+          ),
+          phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
         )
 
         # Verify context stored with region_scope: "all"

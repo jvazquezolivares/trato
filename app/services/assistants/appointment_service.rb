@@ -72,18 +72,26 @@ module Assistants
 
     def notify_provider(appointment)
       summary = build_appointment_summary(appointment)
-      WhatsAppService.send_message(to: @provider.phone, message: summary)
+      WhatsAppService.send_message(
+        to: @provider.phone,
+        message: summary,
+        phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+      )
     end
 
     def build_appointment_summary(appointment)
-      "📋 *Nueva cita agendada*\n\n" \
-      "👤 Cliente: #{@client&.name || 'No proporcionado'}\n" \
-      "📱 Teléfono: #{@from}\n" \
-      "🔧 Servicio: #{appointment.description}\n" \
-      "📍 Dirección: #{appointment.address || 'Por confirmar'}\n" \
-      "📅 Fecha: #{appointment.scheduled_at&.strftime('%d/%m/%Y %H:%M')}\n" \
-      "⏱ Duración estimada: #{appointment.estimated_duration} min\n\n" \
-      "¿Confirmas esta cita? Responde *sí* o propón otro horario."
+      I18n.with_locale(:es) do
+        fields = I18n.t("elisa.client.appointment.notification_fields")
+
+        "#{I18n.t('elisa.client.appointment.notification_header')}\n\n" \
+        "#{fields[:client]} #{@client&.name || 'No proporcionado'}\n" \
+        "#{fields[:phone]} #{@from}\n" \
+        "#{fields[:service]} #{appointment.description}\n" \
+        "#{fields[:address]} #{appointment.address || 'Por confirmar'}\n" \
+        "#{fields[:date]} #{appointment.scheduled_at&.strftime('%d/%m/%Y %H:%M')}\n" \
+        "#{fields[:duration]} #{appointment.estimated_duration} min\n\n" \
+        "#{I18n.t('elisa.client.appointment.notification_footer')}"
+      end
     end
 
     def schedule_reminder(appointment)

@@ -75,7 +75,8 @@ RSpec.describe ProviderConversationHandler, type: :service do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: unknown_phone,
-          message: ProviderConversationHandler::WELCOME_MESSAGE
+          message: I18n.t('elisa.provider.onboarding.welcome'),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
 
@@ -172,7 +173,8 @@ RSpec.describe ProviderConversationHandler, type: :service do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: unknown_phone,
-          message: ProviderConversationHandler::WELCOME_MESSAGE
+          message: I18n.t('elisa.provider.onboarding.welcome'),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
 
@@ -181,7 +183,8 @@ RSpec.describe ProviderConversationHandler, type: :service do
 
         expect(WhatsAppService).to have_received(:send_message).with(
           to: unknown_phone,
-          message: ProviderConversationHandler::WELCOME_MESSAGE
+          message: I18n.t('elisa.provider.onboarding.welcome'),
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
       end
     end
@@ -189,13 +192,16 @@ RSpec.describe ProviderConversationHandler, type: :service do
   end
 
   describe "constants" do
-    it "defines WELCOME_MESSAGE" do
-      expect(ProviderConversationHandler::WELCOME_MESSAGE).to include("Soy Elisa de Trato")
-      expect(ProviderConversationHandler::WELCOME_MESSAGE).to include("crear tu perfil de técnico")
-    end
-
     it "defines ONBOARDING_TTL as 24 hours" do
       expect(ProviderConversationHandler::ONBOARDING_TTL).to eq(86_400)
+    end
+  end
+
+  describe "i18n messages" do
+    it "welcome message is available in YAML" do
+      welcome_message = I18n.t('elisa.provider.onboarding.welcome', locale: :es)
+      expect(welcome_message).to include("Soy Elisa de Trato")
+      expect(welcome_message).to include("crear tu perfil de técnico")
     end
   end
 end

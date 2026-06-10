@@ -407,7 +407,7 @@ class ClientAssistantOrchestrator
     else
       # Unclear response - ask again
       send_client_message(to: @from,
-        message: "No entendí tu respuesta. ¿Buscas un técnico en #{detected_state}?"
+        message: I18n.t('elisa.client.region_detection.retry_prompt', state: detected_state)
       )
 
       # Resend buttons
@@ -797,8 +797,7 @@ class ClientAssistantOrchestrator
     )
 
     # Send confirmation to client
-    client_message = "Perfecto, le avisé a #{provider.name}. " \
-                     "Te contactará pronto para coordinar la cita. 😊"
+    client_message = I18n.t('elisa.client.appointment.escalation_confirmed', name: provider.name)
 
     send_client_message(to: @from,
       message: client_message
@@ -1042,8 +1041,7 @@ class ClientAssistantOrchestrator
   # Send escalation message when provider has no WorkDay configured
   # @param provider [Provider] The provider with no WorkDay
   def send_no_work_day_escalation(provider)
-    message = "#{provider.name} no tiene su agenda configurada para mañana. " \
-              "¿Quieres que le avise para que te contacte directamente?"
+    message = I18n.t('elisa.client.appointment.no_workday', name: provider.name)
 
     send_client_message_with_buttons(
       to: @from,
@@ -1129,8 +1127,7 @@ class ClientAssistantOrchestrator
   # Handle region detection and send confirmation message
   # @param detected_state [String] The detected state name (e.g., "Veracruz")
   def handle_region_detected(detected_state)
-    greeting_message = "¡Hola! 👋 Soy Elisa de Trato. Veo que eres de #{detected_state}. " \
-                       "¿Buscas un técnico en esta región?"
+    greeting_message = I18n.t('elisa.client.region_detection.greeting', state: detected_state)
 
     # Send greeting with Quick Reply Buttons
     send_client_message_with_buttons(

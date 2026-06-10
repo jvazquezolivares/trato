@@ -35,6 +35,9 @@ module Trato
     #
     config.time_zone = "America/Mexico_City"
 
+    # Set default locale to Spanish
+    config.i18n.default_locale = :es
+
     # Sidekiq as Active Job adapter
     config.active_job.queue_adapter = :sidekiq
 
