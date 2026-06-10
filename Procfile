@@ -1,5 +1,9 @@
 # Procfile for Railway deployment
-# Railway will execute the 'web' process by default
+# Railway will execute different processes based on the service configuration
 
-# Start Sidekiq in daemon mode first, then start Rails server
-web: bundle exec sidekiq -C config/sidekiq.yml -d && bundle exec puma -C config/puma.rb
+# Web process: Rails server only
+web: bundle exec puma -C config/puma.rb
+
+# Worker process: Sidekiq for background jobs
+# This should be configured as a separate service in Railway
+worker: bundle exec sidekiq -C config/sidekiq.yml
