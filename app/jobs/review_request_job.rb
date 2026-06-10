@@ -76,19 +76,21 @@ class ReviewRequestJob < ApplicationJob
 
   private
 
-  # Sends the review request message via WhatsApp to the client
+  # Sends the review request message via WhatsApp to the client using an approved template
   def send_review_request(job)
     client = job.client
     provider = job.provider
 
-    # Build List Message with star rating options
-    list_payload = WhatsApp::ListMessageBuilder.build_rating_list
-
-    # Send the List Message
-    WhatsAppService.send_list_message(to: client.phone, payload: list_payload)
+    # Use template message (review_request) with client name, provider name, and primary category
+    WhatsAppService.send_template_message(
+      to: client.phone,
+      template_name: "review_request",
+      parameters: [client.name, provider.name, provider.primary_category],
+      phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
+    )
 
     Rails.logger.info(
-      "[ReviewRequestJob] Sent review request for Job ##{job.id} " \
+      "[ReviewRequestJob] Sent review request template for Job ##{job.id} " \
       "to #{client.phone} (attempt #{job.review_attempts + 1})"
     )
   end

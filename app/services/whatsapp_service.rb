@@ -128,4 +128,79 @@ class WhatsAppService
 
     response
   end
+
+  # Sends a WhatsApp Message Template (pre-approved by Meta).
+  # Used for proactive messaging outside the 24-hour messaging window.
+  #
+  # @param to [String] Recipient phone number
+  # @param template_name [String] Name of the approved template (e.g., "morning_summary")
+  # @param language [String] Language code (default: "es_MX" for Mexican Spanish)
+  # @param parameters [Array<String>] Template parameter values (e.g., [provider.name, summary_text])
+  # @param phone_number_id [String, nil] Override default phone number ID (defaults to ENV['WHATSAPP_PHONE_NUMBER_ID'])
+  # @return [HTTParty::Response] API response
+  #
+  # @example Send morning summary template
+  #   WhatsAppService.send_template_message(
+  #     to: provider.phone,
+  #     template_name: "morning_summary",
+  #     parameters: [provider.name, "Tienes 3 pendientes de ayer"]
+  #   )
+  #
+  # @example Send review request to client (using client phone number ID)
+  #   WhatsAppService.send_template_message(
+  #     to: client.phone,
+  #     template_name: "review_request",
+  #     parameters: [client.name, provider.name, provider.primary_category],
+  #     phone_number_id: ENV['WHATSAPP_CLIENT_PHONE_NUMBER_ID']
+  #   )
+  def self.send_template_message(to:, template_name:, language: "es_MX", parameters: [], phone_number_id: nil)
+    phone_id = phone_number_id || ENV["WHATSAPP_PHONE_NUMBER_ID"]
+    url = "#{BASE_URL}/#{phone_id}/messages"
+
+    # Build components array with text parameters
+    components = if parameters.any?
+      [
+        {
+          type: "body",
+          parameters: parameters.map { |param| { type: "text", text: param.to_s } }
+        }
+      ]
+    else
+      []
+    end
+
+    body_payload = {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "template",
+      template: {
+        name: template_name,
+        language: { code: language },
+        components: components
+      }
+    }
+
+    response = HTTParty.post(
+      url,
+      headers: {
+        "Authorization" => "Bearer #{ENV['WHATSAPP_ACCESS_TOKEN']}",
+        "Content-Type" => "application/json"
+      },
+      body: body_payload.to_json
+    )
+
+    if response.success?
+      Rails.logger.info(
+        "[WhatsAppService] Sent template '#{template_name}' to #{to} " \
+        "(phone_id: #{phone_id})"
+      )
+    else
+      Rails.logger.error(
+        "[WhatsAppService] Failed to send template '#{template_name}' to #{to}: " \
+        "HTTP #{response.code} — #{response.body}"
+      )
+    end
+
+    response
+  end
 end

@@ -8,7 +8,7 @@ RSpec.describe MorningSummaryJob, type: :job do
 
   before do
     allow(Time).to receive(:current).and_return(mexico_city_tz.local(2025, 4, 15, 8, 0, 0))
-    allow(WhatsAppService).to receive(:send_message)
+    allow(WhatsAppService).to receive(:send_template_message)
   end
 
   # Stubs the ActiveRecord query chain used by the job to find eligible providers.
@@ -47,28 +47,12 @@ RSpec.describe MorningSummaryJob, type: :job do
         stub_pending_tasks(provider, [])
       end
 
-      it "sends a morning message via WhatsAppService" do
-        expect(WhatsAppService).to receive(:send_message).with(
+      it "sends a morning message template via WhatsAppService" do
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212211234567",
-          message: a_string_including("Buenos días Miguel García")
-        )
-
-        described_class.new.perform
-      end
-
-      it "includes a warm greeting with the provider name" do
-        expect(WhatsAppService).to receive(:send_message).with(
-          to: "5212211234567",
-          message: a_string_starting_with("Buenos días Miguel García ☀️")
-        )
-
-        described_class.new.perform
-      end
-
-      it "asks about the day in an explicit and instructive way" do
-        expect(WhatsAppService).to receive(:send_message).with(
-          to: "5212211234567",
-          message: a_string_including("Menciónamelos para que pueda registrarlos")
+          template_name: "morning_summary",
+          parameters: ["Miguel García", a_string_including("¿Tienes pendientes para hoy?")],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         described_class.new.perform
@@ -81,7 +65,7 @@ RSpec.describe MorningSummaryJob, type: :job do
       end
 
       it "does not send any message" do
-        expect(WhatsAppService).not_to receive(:send_message)
+        expect(WhatsAppService).not_to receive(:send_template_message)
 
         described_class.new.perform
       end
@@ -93,7 +77,7 @@ RSpec.describe MorningSummaryJob, type: :job do
       end
 
       it "does not send any message" do
-        expect(WhatsAppService).not_to receive(:send_message)
+        expect(WhatsAppService).not_to receive(:send_template_message)
 
         described_class.new.perform
       end
@@ -111,28 +95,43 @@ RSpec.describe MorningSummaryJob, type: :job do
         stub_pending_tasks(provider, [ task_one, task_two ])
       end
 
-      it "includes the pending tasks in the message" do
-        expect(WhatsAppService).to receive(:send_message).with(
+      it "includes the pending tasks in the summary parameter" do
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212219876543",
-          message: a_string_including("Llamar al señor Pérez", "Comprar cable calibre 12")
+          template_name: "morning_summary",
+          parameters: [
+            "Carlos López",
+            a_string_including("Llamar al señor Pérez", "Comprar cable calibre 12")
+          ],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         described_class.new.perform
       end
 
-      it "shows the count of pending tasks" do
-        expect(WhatsAppService).to receive(:send_message).with(
+      it "shows the count of pending tasks in the summary" do
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212219876543",
-          message: a_string_including("2 pendientes de ayer")
+          template_name: "morning_summary",
+          parameters: [
+            "Carlos López",
+            a_string_including("2 pendientes de ayer")
+          ],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         described_class.new.perform
       end
 
       it "formats tasks as a bullet list" do
-        expect(WhatsAppService).to receive(:send_message).with(
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212219876543",
-          message: a_string_including("• Llamar al señor Pérez", "• Comprar cable calibre 12")
+          template_name: "morning_summary",
+          parameters: [
+            "Carlos López",
+            a_string_including("• Llamar al señor Pérez", "• Comprar cable calibre 12")
+          ],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         described_class.new.perform
@@ -151,9 +150,14 @@ RSpec.describe MorningSummaryJob, type: :job do
       end
 
       it "uses singular form for one pending task" do
-        expect(WhatsAppService).to receive(:send_message).with(
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212215551234",
-          message: a_string_including("1 pendiente de ayer")
+          template_name: "morning_summary",
+          parameters: [
+            "Ana Ruiz",
+            a_string_including("1 pendiente de ayer")
+          ],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         described_class.new.perform
@@ -171,26 +175,36 @@ RSpec.describe MorningSummaryJob, type: :job do
       end
 
       it "sends a greeting without task list" do
-        expect(WhatsAppService).to receive(:send_message).with(
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212218889999",
-          message: a_string_including("Buenos días Roberto Díaz")
+          template_name: "morning_summary",
+          parameters: [
+            "Roberto Díaz",
+            a_string_including("¿Tienes pendientes para hoy?")
+          ],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         described_class.new.perform
       end
 
       it "does not mention pendientes de ayer" do
-        expect(WhatsAppService).to receive(:send_message) do |args|
-          expect(args[:message]).not_to include("pendientes de ayer")
+        expect(WhatsAppService).to receive(:send_template_message) do |args|
+          expect(args[:parameters][1]).not_to include("pendientes de ayer")
         end
 
         described_class.new.perform
       end
 
       it "still asks about new tasks for today" do
-        expect(WhatsAppService).to receive(:send_message).with(
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212218889999",
-          message: a_string_including("Menciónamelos para que pueda registrarlos")
+          template_name: "morning_summary",
+          parameters: [
+            "Roberto Díaz",
+            a_string_including("Menciónamelos para registrarlos")
+          ],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         described_class.new.perform
@@ -212,13 +226,17 @@ RSpec.describe MorningSummaryJob, type: :job do
       end
 
       it "sends a message to each provider" do
-        expect(WhatsAppService).to receive(:send_message).with(
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212211111111",
-          message: a_string_including("Miguel García")
+          template_name: "morning_summary",
+          parameters: ["Miguel García", anything],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
-        expect(WhatsAppService).to receive(:send_message).with(
+        expect(WhatsAppService).to receive(:send_template_message).with(
           to: "5212222222222",
-          message: a_string_including("Carlos López")
+          template_name: "morning_summary",
+          parameters: ["Carlos López", anything],
+          phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
         )
 
         described_class.new.perform

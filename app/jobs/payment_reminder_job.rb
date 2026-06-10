@@ -25,11 +25,24 @@ class PaymentReminderJob < ApplicationJob
       outstanding_by_client = outstanding_amounts_grouped_by_client(provider)
       next if outstanding_by_client.empty?
 
-      message = build_reminder_message(provider, outstanding_by_client)
-      WhatsAppService.send_message(to: provider.phone, message: message)
+      # Calculate total outstanding amount
+      total = outstanding_by_client.sum { |entry| entry[:total_outstanding] }
+
+      # Build client list for the template parameter
+      client_list = outstanding_by_client.map do |entry|
+        "• #{entry[:client_name]}: $#{'%.2f' % entry[:total_outstanding]}"
+      end.join("\n")
+
+      # Use template message (payment_reminder) with provider name, total amount, and client list
+      WhatsAppService.send_template_message(
+        to: provider.phone,
+        template_name: "payment_reminder",
+        parameters: [provider.name, "#{'%.2f' % total}", client_list],
+        phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+      )
 
       Rails.logger.info(
-        "[PaymentReminderJob] Sent payment reminder to #{provider.name} " \
+        "[PaymentReminderJob] Sent payment reminder template to #{provider.name} " \
         "(#{provider.phone}) — #{outstanding_by_client.size} clients with outstanding balance"
       )
     end
@@ -67,20 +80,5 @@ class PaymentReminderJob < ApplicationJob
         }
       end
       .select { |entry| entry[:total_outstanding].positive? }
-  end
-
-  # Builds the payment reminder message in warm, colloquial Mexican Spanish.
-  # Max 2 emojis, 5-6 lines.
-  def build_reminder_message(provider, outstanding_by_client)
-    total = outstanding_by_client.sum { |entry| entry[:total_outstanding] }
-
-    client_lines = outstanding_by_client.map do |entry|
-      "• #{entry[:client_name]}: $#{'%.2f' % entry[:total_outstanding]}"
-    end
-
-    "Hola #{provider.name} 💰\n" \
-      "Tienes cobros pendientes por $#{'%.2f' % total}:\n" \
-      "#{client_lines.join("\n")}\n" \
-      "¿Quieres que les mande recordatorio de pago? 📋"
   end
 end

@@ -21,30 +21,40 @@ class AppointmentReminderJob < ApplicationJob
     return if client.phone.blank?
 
     provider = appointment.provider
-    message = build_reminder_message(appointment, provider, client)
 
-    WhatsAppService.send_message(to: client.phone, message: message)
+    # Format appointment details for template parameters
+    recipient_name = client.name.presence || "Cliente"
+    other_party_name = provider.name
+    appointment_time = appointment.scheduled_at&.strftime("%d/%m/%Y a las %H:%M") || "próximamente"
+    location = appointment.address.presence || "ubicación por confirmar"
+
+    # Use template message (appointment_reminder) for client
+    WhatsAppService.send_template_message(
+      to: client.phone,
+      template_name: "appointment_reminder",
+      parameters: [recipient_name, other_party_name, appointment_time, location],
+      phone_number_id: ENV["WHATSAPP_CLIENT_PHONE_NUMBER_ID"]
+    )
 
     Rails.logger.info(
-      "[AppointmentReminderJob] Sent reminder for Appointment ##{appointment.id} " \
+      "[AppointmentReminderJob] Sent appointment reminder template for Appointment ##{appointment.id} " \
       "to #{client.phone}"
     )
-  end
 
-  private
+    # Also send reminder to provider using provider phone number ID
+    provider_recipient_name = provider.name
+    other_party_for_provider = client.name.presence || "Cliente"
 
-  # Builds the appointment reminder in warm, colloquial Mexican Spanish.
-  # Max 2 emojis, 5-6 lines. Includes provider name, service description,
-  # scheduled time, and address.
-  def build_reminder_message(appointment, provider, client)
-    greeting = client.name.present? ? "Hola #{client.name}" : "Hola"
-    scheduled_time = appointment.scheduled_at&.strftime("%d/%m/%Y a las %H:%M")
-    description = appointment.description.presence || "tu servicio"
-    address_line = appointment.address.present? ? "\n📍 #{appointment.address}" : ""
+    WhatsAppService.send_template_message(
+      to: provider.phone,
+      template_name: "appointment_reminder",
+      parameters: [provider_recipient_name, other_party_for_provider, appointment_time, location],
+      phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+    )
 
-    "#{greeting} 👋\n" \
-      "Te recordamos que tienes una cita con #{provider.name} " \
-      "para #{description} programada el #{scheduled_time}.#{address_line}\n" \
-      "¡Te esperamos!"
+    Rails.logger.info(
+      "[AppointmentReminderJob] Sent appointment reminder template for Appointment ##{appointment.id} " \
+      "to provider #{provider.phone}"
+    )
   end
 end

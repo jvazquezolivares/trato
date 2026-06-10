@@ -50,6 +50,9 @@ Rails.application.routes.draw do
   delete "/mi-perfil/photos/:id", to: "provider_panel#destroy_photo", as: :mi_perfil_photo
   patch "/mi-perfil/photos/reorder", to: "provider_panel#reorder_photos", as: :mi_perfil_photos_reorder
 
+  # Privacy policy — required by Meta for WhatsApp Business approval
+  get "/privacy", to: "privacy#show", as: :privacy
+
   # Homepage
   root "home#index"
 

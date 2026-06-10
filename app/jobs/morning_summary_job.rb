@@ -25,12 +25,18 @@ class MorningSummaryJob < ApplicationJob
 
     active_providers_without_work_day(today).find_each do |provider|
       pending_tasks = pending_tasks_for(provider, yesterday)
-      message = build_morning_message(provider, pending_tasks)
+      summary_text = build_summary_text(pending_tasks)
 
-      WhatsAppService.send_message(to: provider.phone, message: message)
+      # Use template message (morning_summary) with provider name and summary
+      WhatsAppService.send_template_message(
+        to: provider.phone,
+        template_name: "morning_summary",
+        parameters: [provider.name, summary_text],
+        phone_number_id: ENV["WHATSAPP_PROVIDER_PHONE_NUMBER_ID"]
+      )
 
       Rails.logger.info(
-        "[MorningSummaryJob] Sent morning summary to #{provider.name} " \
+        "[MorningSummaryJob] Sent morning summary template to #{provider.name} " \
         "(#{provider.phone}) — #{pending_tasks.size} pending tasks"
       )
     end
@@ -58,24 +64,17 @@ class MorningSummaryJob < ApplicationJob
     provider.tasks.where(status: "pending").where("created_at <= ?", date.end_of_day)
   end
 
-  # Builds the morning message in warm, colloquial Mexican Spanish.
-  # Max 2 emojis per message, never scolds for not reporting.
-  # Instructs the provider to report task completions and new tasks.
-  def build_morning_message(provider, pending_tasks)
-    greeting = "Buenos días #{provider.name} ☀️"
-
+  # Builds the summary text for the template's parameter.
+  # Returns a summary of pending tasks or a prompt to report new tasks.
+  def build_summary_text(pending_tasks)
     if pending_tasks.any?
       task_list = pending_tasks.map { |task| "• #{task.description}" }.join("\n")
 
-      "#{greeting}\n" \
-        "Tienes #{pending_tasks.size} #{pending_tasks.size == 1 ? 'pendiente' : 'pendientes'} de ayer:\n" \
+      "Tienes #{pending_tasks.size} #{pending_tasks.size == 1 ? 'pendiente' : 'pendientes'} de ayer:\n" \
         "#{task_list}\n" \
-        "Indícame cuando termines tus pendientes para que pueda tacharlos de tu lista de tareas. " \
-        "¿Tienes más pendientes para hoy? Menciónamelos para que pueda registrarlos y llevar un mejor control 📋"
+        "Indícame cuando termines para tacharlos. ¿Tienes más pendientes para hoy?"
     else
-      "#{greeting}\n" \
-        "¿Tienes pendientes para hoy? " \
-        "Menciónamelos para que pueda registrarlos y llevar un mejor control 📋"
+      "¿Tienes pendientes para hoy? Menciónamelos para registrarlos."
     end
   end
 end
